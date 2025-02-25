@@ -89,6 +89,14 @@ describe("WebviewMessageHandlers", () => {
 			cline: undefined,
 			view: undefined,
 			workspaceTracker: undefined,
+			browserManager: {
+				urlContentFetcher: {
+					launchBrowser: jest.fn(),
+					closeBrowser: jest.fn(),
+					urlToMarkdown: jest.fn(),
+				},
+				fetchUrlContent: jest.fn(),
+			} as any,
 		}
 
 		// Create the handlers instance

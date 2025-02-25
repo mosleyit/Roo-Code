@@ -4,6 +4,7 @@ import { ModelManager } from "../models/ModelManager"
 import { TaskHistoryManager } from "../tasks/TaskHistoryManager"
 import { ConfigManager } from "../config/ConfigManager"
 import { CustomModesManager } from "../config/CustomModesManager"
+import { BrowserManager } from "../browser/BrowserManager"
 import { McpHub } from "../../services/mcp/McpHub"
 import { ApiConfiguration } from "../../shared/api"
 import { HistoryItem } from "../../shared/HistoryItem"
@@ -23,6 +24,7 @@ export interface ClineProviderInterface {
 	taskHistoryManager: TaskHistoryManager
 	configManager: ConfigManager
 	customModesManager: CustomModesManager
+	browserManager: BrowserManager
 	cline?: Cline
 	view?: vscode.WebviewView | vscode.WebviewPanel
 	isViewLaunched: boolean

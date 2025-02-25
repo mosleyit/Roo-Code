@@ -14,6 +14,7 @@ import { TaskHistoryManager } from "../tasks/TaskHistoryManager"
 import { WebviewManager } from "./WebviewManager"
 import { WebviewMessageHandlers } from "./WebviewMessageHandlers"
 import { WebviewCommandRegistry } from "./commands/WebviewCommandRegistry"
+import { BrowserManager } from "../browser/BrowserManager"
 import { SettingsCommandHandler } from "./commands/SettingsCommandHandler"
 import { TaskCommandHandler } from "./commands/TaskCommandHandler"
 import { TaskHistoryCommandHandler } from "./commands/TaskHistoryCommandHandler"
@@ -93,6 +94,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	private commandRegistry: WebviewCommandRegistry
 	public experimentDefault = expDefault
 	private systemPromptGenerator: SystemPromptGenerator
+	public browserManager: BrowserManager
 
 	/**
 	 * Register command handlers for different message types
@@ -215,6 +217,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.webviewManager = new WebviewManager(this.context, this.outputChannel)
 		this.commandRegistry = new WebviewCommandRegistry()
 		this.systemPromptGenerator = new SystemPromptGenerator(this.context)
+		this.browserManager = new BrowserManager(this.context, this.outputChannel)
 		this.registerCommandHandlers()
 
 		// Initialize MCP Hub through the singleton manager

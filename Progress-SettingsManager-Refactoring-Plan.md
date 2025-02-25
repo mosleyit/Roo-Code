@@ -257,12 +257,30 @@ The SystemPromptGenerator implementation has been created and integrated with Cl
     - **Fix**: Updated the tests to directly call the appropriate command handlers instead of going through the ClineProvider's message handling mechanism. This ensures that the tests can still verify the functionality works correctly, even though it's now implemented in separate classes.
     - **Result**: All tests now pass successfully.
 
-#### Step 4: Extract BrowserManager (In Progress)
+#### Step 4: Extract BrowserManager ✅ (Completed)
 
-- [ ] Create a new file `src/core/browser/BrowserManager.ts`
-- [ ] Move browser-related methods and logic from ClineProvider to BrowserManager
-- [ ] Update ClineProvider to use BrowserManager
-- [ ] Create unit tests for BrowserManager
+- [x] Create a new file `src/core/browser/BrowserManager.ts`
+- [x] Move browser-related methods and logic from ClineProvider to BrowserManager
+- [x] Update ClineProvider to use BrowserManager
+- [x] Create unit tests for BrowserManager
+- [x] Fix issues with parseMentions function to work with BrowserManager
+
+The BrowserManager implementation has successfully extracted browser-related functionality from ClineProvider. This includes browser session management, URL content fetching, and browser action handling. The extraction has improved separation of concerns by isolating browser-specific functionality.
+
+##### Issues and Fixes
+
+1. **parseMentions Function Compatibility**
+
+    - **Issue**: After implementing the BrowserManager class and updating ClineProvider to use it, the parseMentions function in src/core/mentions/index.ts was failing because it expected a UrlContentFetcher instance, but we were passing a BrowserManager instance.
+    - **Root Cause**: The parseMentions function was designed to work with a UrlContentFetcher instance, but the BrowserManager class encapsulates the UrlContentFetcher and doesn't expose it directly.
+    - **Fix**: Modified the BrowserManager class to expose the urlContentFetcher property as public, allowing the Cline class to pass it directly to the parseMentions function. Updated the Cline class to use browserManager.urlContentFetcher instead of creating a wrapper object.
+    - **Result**: The parseMentions function now works correctly with the BrowserManager class, and all tests pass successfully.
+
+2. **Test Compatibility Issues**
+    - **Issue**: After making the urlContentFetcher property public in BrowserManager, the WebviewMessageHandlers tests were failing because the mockProvider object didn't include a browserManager property with a urlContentFetcher.
+    - **Root Cause**: The ClineProviderInterface was updated to include a browserManager property, but the mockProvider object in WebviewMessageHandlers.test.ts wasn't updated to include this property.
+    - **Fix**: Added a browserManager property with a mock urlContentFetcher to the mockProvider object in WebviewMessageHandlers.test.ts.
+    - **Result**: All tests now pass successfully.
 
 #### Step 5: Implement Service Locator Pattern (Planned)
 
