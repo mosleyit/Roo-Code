@@ -10,6 +10,7 @@ import simpleGit from "simple-git"
 
 import { SettingsManager, SecretKey, GlobalStateKey } from "../settings/SettingsManager"
 import { ModelManager } from "../models/ModelManager"
+import { TaskHistoryManager } from "../tasks/TaskHistoryManager"
 
 import { buildApiHandler } from "../../api"
 import { downloadTask } from "../../integrations/misc/export-markdown"
@@ -50,13 +51,7 @@ https://github.com/KumarVariable/vscode-extension-sidebar-html/blob/master/src/c
 */
 
 export const GlobalFileNames = {
-	apiConversationHistory: "api_conversation_history.json",
-	uiMessages: "ui_messages.json",
-	glamaModels: "glama_models.json",
-	openRouterModels: "openrouter_models.json",
-	requestyModels: "requesty_models.json",
 	mcpSettings: "cline_mcp_settings.json",
-	unboundModels: "unbound_models.json",
 }
 
 export class ClineProvider implements vscode.WebviewViewProvider {
@@ -74,6 +69,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	customModesManager: CustomModesManager
 	private settingsManager: SettingsManager
 	private modelManager: ModelManager
+	private taskHistoryManager: TaskHistoryManager
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
@@ -88,6 +84,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		})
 		this.settingsManager = new SettingsManager(this.context)
 		this.modelManager = new ModelManager(this.context, this.outputChannel, this.settingsManager)
+		this.taskHistoryManager = new TaskHistoryManager(this.context, this.settingsManager, this.outputChannel)
 
 		// Initialize MCP Hub through the singleton manager
 		McpServerManager.getInstance(this.context, this)
@@ -1803,49 +1800,21 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 
 	// Task history
 
-	async getTaskWithId(id: string): Promise<{
-		historyItem: HistoryItem
-		taskDirPath: string
-		apiConversationHistoryFilePath: string
-		uiMessagesFilePath: string
-		apiConversationHistory: Anthropic.MessageParam[]
-	}> {
-		const history = ((await this.getGlobalState("taskHistory")) as HistoryItem[] | undefined) || []
-		const historyItem = history.find((item) => item.id === id)
-		if (historyItem) {
-			const taskDirPath = path.join(this.context.globalStorageUri.fsPath, "tasks", id)
-			const apiConversationHistoryFilePath = path.join(taskDirPath, GlobalFileNames.apiConversationHistory)
-			const uiMessagesFilePath = path.join(taskDirPath, GlobalFileNames.uiMessages)
-			const fileExists = await fileExistsAtPath(apiConversationHistoryFilePath)
-			if (fileExists) {
-				const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8"))
-				return {
-					historyItem,
-					taskDirPath,
-					apiConversationHistoryFilePath,
-					uiMessagesFilePath,
-					apiConversationHistory,
-				}
-			}
-		}
-		// if we tried to get a task that doesn't exist, remove it from state
-		// FIXME: this seems to happen sometimes when the json file doesnt save to disk for some reason
-		await this.deleteTaskFromState(id)
-		throw new Error("Task not found")
+	async getTaskWithId(id: string) {
+		return this.taskHistoryManager.getTaskWithId(id)
 	}
 
 	async showTaskWithId(id: string) {
 		if (id !== this.cline?.taskId) {
 			// non-current task
-			const { historyItem } = await this.getTaskWithId(id)
+			const historyItem = await this.taskHistoryManager.showTaskWithId(id)
 			await this.initClineWithHistoryItem(historyItem) // clears existing task
 		}
 		await this.postMessageToWebview({ type: "action", action: "chatButtonClicked" })
 	}
 
 	async exportTaskWithId(id: string) {
-		const { historyItem, apiConversationHistory } = await this.getTaskWithId(id)
-		await downloadTask(historyItem.ts, apiConversationHistory)
+		await this.taskHistoryManager.exportTaskWithId(id)
 	}
 
 	async deleteTaskWithId(id: string) {
@@ -1853,66 +1822,14 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			await this.clearTask()
 		}
 
-		const { taskDirPath, apiConversationHistoryFilePath, uiMessagesFilePath } = await this.getTaskWithId(id)
+		await this.taskHistoryManager.deleteTaskWithId(id)
 
-		await this.deleteTaskFromState(id)
-
-		// Delete the task files.
-		const apiConversationHistoryFileExists = await fileExistsAtPath(apiConversationHistoryFilePath)
-
-		if (apiConversationHistoryFileExists) {
-			await fs.unlink(apiConversationHistoryFilePath)
-		}
-
-		const uiMessagesFileExists = await fileExistsAtPath(uiMessagesFilePath)
-
-		if (uiMessagesFileExists) {
-			await fs.unlink(uiMessagesFilePath)
-		}
-
-		const legacyMessagesFilePath = path.join(taskDirPath, "claude_messages.json")
-
-		if (await fileExistsAtPath(legacyMessagesFilePath)) {
-			await fs.unlink(legacyMessagesFilePath)
-		}
-
-		const { checkpointsEnabled } = await this.getState()
-		const baseDir = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0)
-
-		// Delete checkpoints branch.
-		if (checkpointsEnabled && baseDir) {
-			const branchSummary = await simpleGit(baseDir)
-				.branch(["-D", `roo-code-checkpoints-${id}`])
-				.catch(() => undefined)
-
-			if (branchSummary) {
-				console.log(`[deleteTaskWithId${id}] deleted checkpoints branch`)
-			}
-		}
-
-		// Delete checkpoints directory
-		const checkpointsDir = path.join(taskDirPath, "checkpoints")
-
-		if (await fileExistsAtPath(checkpointsDir)) {
-			try {
-				await fs.rm(checkpointsDir, { recursive: true, force: true })
-				console.log(`[deleteTaskWithId${id}] removed checkpoints repo`)
-			} catch (error) {
-				console.error(
-					`[deleteTaskWithId${id}] failed to remove checkpoints repo: ${error instanceof Error ? error.message : String(error)}`,
-				)
-			}
-		}
-
-		// Succeeds if the dir is empty.
-		await fs.rmdir(taskDirPath)
+		// Notify the webview that the task has been deleted
+		await this.postStateToWebview()
 	}
 
 	async deleteTaskFromState(id: string) {
-		// Remove the task from history
-		const taskHistory = ((await this.getGlobalState("taskHistory")) as HistoryItem[]) || []
-		const updatedTaskHistory = taskHistory.filter((task) => task.id !== id)
-		await this.updateGlobalState("taskHistory", updatedTaskHistory)
+		await this.taskHistoryManager.deleteTaskFromState(id)
 
 		// Notify the webview that the task has been deleted
 		await this.postStateToWebview()
@@ -2442,15 +2359,6 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 
 	// Task history management
 	public async updateTaskHistory(historyItem: HistoryItem) {
-		const taskHistory = ((await this.getGlobalState("taskHistory")) as HistoryItem[]) || []
-		const existingIndex = taskHistory.findIndex((item) => item.id === historyItem.id)
-
-		if (existingIndex !== -1) {
-			taskHistory[existingIndex] = historyItem
-		} else {
-			taskHistory.push(historyItem)
-		}
-
-		await this.updateGlobalState("taskHistory", taskHistory)
+		return this.taskHistoryManager.updateTaskHistory(historyItem)
 	}
 }

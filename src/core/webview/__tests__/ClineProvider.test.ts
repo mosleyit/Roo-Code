@@ -15,6 +15,7 @@ jest.mock("../../prompts/sections/custom-instructions")
 // Mock dependencies
 jest.mock("vscode")
 jest.mock("delay")
+jest.mock("../../tasks/TaskHistoryManager")
 jest.mock(
 	"@modelcontextprotocol/sdk/types.js",
 	() => ({
