@@ -1,8 +1,10 @@
 # Settings Architecture
 
-The Cline extension uses a modular architecture for managing settings, with several key components:
+The Cline extension uses a modular architecture for managing settings and other functionality, with several key components:
 
-## SettingsManager
+## Current Architecture
+
+### SettingsManager
 
 The `SettingsManager` class is responsible for managing all settings in the extension. It provides methods for:
 
@@ -10,7 +12,7 @@ The `SettingsManager` class is responsible for managing all settings in the exte
 - Storing and retrieving secrets (API keys, etc.)
 - Managing settings persistence
 
-## ModelManager
+### ModelManager
 
 The `ModelManager` class handles all model-related operations:
 
@@ -18,7 +20,7 @@ The `ModelManager` class handles all model-related operations:
 - Caching model information
 - Refreshing model lists
 
-## TaskHistoryManager
+### TaskHistoryManager
 
 The `TaskHistoryManager` class manages the history of tasks:
 
@@ -27,7 +29,7 @@ The `TaskHistoryManager` class manages the history of tasks:
 - Exporting tasks to markdown
 - Deleting tasks
 
-## WebviewMessageHandlers
+### WebviewMessageHandlers
 
 The `WebviewMessageHandlers` class processes messages from the webview:
 
@@ -36,9 +38,61 @@ The `WebviewMessageHandlers` class processes messages from the webview:
 - Manages model-related messages
 - Handles API configuration messages
 
-## ClineProvider
+### ClineProvider
 
 The `ClineProvider` class serves as the main controller, coordinating between these components and the webview.
+
+## Planned Architecture Enhancements (Phase 3)
+
+The following components are planned for future implementation to further improve the architecture:
+
+### WebviewManager
+
+The `WebviewManager` class will handle all webview-related functionality:
+
+- Generating HTML content for the webview
+- Managing webview lifecycle
+- Handling webview communication
+
+### Command Pattern for Webview Messages
+
+A command pattern implementation will replace the current switch statement approach:
+
+- `WebviewCommandHandler` interface for all command handlers
+- Specialized command handlers for different message types
+- `WebviewCommandRegistry` to manage and execute commands
+
+### SystemPromptGenerator
+
+The `SystemPromptGenerator` class will handle system prompt generation:
+
+- Generating system prompts based on user settings
+- Customizing prompts for different modes
+- Managing prompt templates
+
+### BrowserManager
+
+The `BrowserManager` class will handle browser-related functionality:
+
+- Managing browser interactions
+- Handling browser events
+- Processing browser screenshots
+
+### Service Locator
+
+A `ServiceLocator` will provide dependency management:
+
+- Centralized access to services
+- Reduced coupling between components
+- Simplified testing through dependency injection
+
+### ClineProviderFactory
+
+The `ClineProviderFactory` will simplify the creation of ClineProvider instances:
+
+- Initializing all dependencies
+- Creating properly configured ClineProvider instances
+- Simplifying extension initialization
 
 ## Adding New Settings
 

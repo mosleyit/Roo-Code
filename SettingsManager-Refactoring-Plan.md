@@ -290,14 +290,355 @@ The primary impact will be a significant reduction in the size and complexity of
 
 This refactoring will set the stage for further improvements to the codebase, making it easier to add new features and maintain existing ones.
 
-## Future Improvements
+## Phase 3: Advanced Component Extraction
 
-After completing Phase 2, we can consider further improvements:
+Building on the success of Phases 1 and 2, Phase 3 will focus on further reducing the size and complexity of ClineProvider by extracting more specialized components and implementing design patterns to improve maintainability.
 
-1. **Extract WebView Management**: Create a dedicated WebViewManager to handle webview-related functionality
-2. **Extract API Configuration Management**: Create a dedicated ApiConfigManager to handle API configuration
-3. **Implement Dependency Injection**: Use dependency injection to make the code more testable and flexible
-4. **Create a Service Locator**: Implement a service locator pattern to manage dependencies
-5. **Implement a Command Pattern**: Use the command pattern for handling webview messages
+### Step 1: Extract WebviewManager
 
-These improvements will further enhance the modularity and maintainability of the codebase.
+1. Create a new `WebviewManager` class in `src/core/webview/WebviewManager.ts`
+2. Move all webview-related methods from ClineProvider to WebviewManager:
+    - `getHtmlContent`
+    - `getHMRHtmlContent`
+    - `resolveWebviewView` (adapt as needed)
+    - `postMessageToWebview`
+3. Update ClineProvider to use WebviewManager:
+
+```typescript
+// In ClineProvider.ts
+private webviewManager: WebviewManager
+
+constructor(...) {
+    // ...
+    this.webviewManager = new WebviewManager(this.context, this.outputChannel)
+    // ...
+}
+
+// Use webviewManager instead of direct methods
+```
+
+### Step 2: Implement Command Pattern for Webview Messages
+
+Replace the large switch statement in `setWebviewMessageListener` with a command pattern implementation.
+
+1. Create a new directory `src/core/webview/commands/`
+2. Create an interface for command handlers:
+
+```typescript
+// src/core/webview/commands/WebviewCommandHandler.ts
+export interface WebviewCommandHandler {
+	execute(message: WebviewMessage, provider: ClineProvider): Promise<void>
+}
+```
+
+3. Create command handler implementations for each message type category:
+
+    - `src/core/webview/commands/SettingsCommandHandler.ts`
+    - `src/core/webview/commands/TaskCommandHandler.ts`
+    - `src/core/webview/commands/ModelCommandHandler.ts`
+    - `src/core/webview/commands/ApiConfigCommandHandler.ts`
+    - etc.
+
+4. Create a command registry to manage handlers:
+
+```typescript
+// src/core/webview/commands/WebviewCommandRegistry.ts
+export class WebviewCommandRegistry {
+	private handlers: Map<string, WebviewCommandHandler> = new Map()
+
+	register(type: string, handler: WebviewCommandHandler): void {
+		this.handlers.set(type, handler)
+	}
+
+	async execute(message: WebviewMessage, provider: ClineProvider): Promise<void> {
+		const handler = this.handlers.get(message.type)
+		if (handler) {
+			await handler.execute(message, provider)
+		}
+	}
+}
+```
+
+5. Update ClineProvider to use the command registry:
+
+```typescript
+// In ClineProvider.ts
+private commandRegistry: WebviewCommandRegistry
+
+constructor(...) {
+    // ...
+    this.commandRegistry = new WebviewCommandRegistry()
+    this.registerCommandHandlers()
+    // ...
+}
+
+private registerCommandHandlers(): void {
+    // Register all command handlers
+    this.commandRegistry.register("customInstructions", new SettingsCommandHandler())
+    this.commandRegistry.register("newTask", new TaskCommandHandler())
+    // ...
+}
+
+private setWebviewMessageListener(webview: vscode.Webview): void {
+    webview.onDidReceiveMessage(
+        async (message: WebviewMessage) => {
+            try {
+                await this.commandRegistry.execute(message, this)
+            } catch (error) {
+                this.outputChannel.appendLine(
+                    `Error handling webview message: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`
+                )
+                vscode.window.showErrorMessage("An error occurred while processing your request")
+            }
+        },
+        null,
+        this.disposables
+    )
+}
+```
+
+### Step 3: Extract SystemPromptGenerator
+
+Create a dedicated class for generating system prompts.
+
+1. Create a new file `src/core/prompts/SystemPromptGenerator.ts`
+2. Move the system prompt generation logic from ClineProvider to SystemPromptGenerator:
+    - Extract the `generateSystemPrompt` function
+    - Move any helper methods related to system prompt generation
+
+```typescript
+// src/core/prompts/SystemPromptGenerator.ts
+export class SystemPromptGenerator {
+	constructor(private context: vscode.ExtensionContext) {}
+
+	async generateSystemPrompt(options: SystemPromptOptions): Promise<string> {
+		// Move system prompt generation logic here
+		return SYSTEM_PROMPT(
+			this.context,
+			options.cwd,
+			options.supportsComputerUse,
+			options.mcpHub,
+			options.diffStrategy,
+			options.browserViewportSize,
+			options.mode,
+			options.customModePrompts,
+			options.customModes,
+			options.customInstructions,
+			options.preferredLanguage,
+			options.diffEnabled,
+			options.experiments,
+			options.enableMcpServerCreation,
+		)
+	}
+}
+```
+
+3. Update ClineProvider to use SystemPromptGenerator:
+
+```typescript
+// In ClineProvider.ts
+private systemPromptGenerator: SystemPromptGenerator
+
+constructor(...) {
+    // ...
+    this.systemPromptGenerator = new SystemPromptGenerator(this.context)
+    // ...
+}
+
+// Replace direct calls to SYSTEM_PROMPT with systemPromptGenerator
+```
+
+### Step 4: Extract BrowserManager
+
+Create a dedicated class for browser-related functionality.
+
+1. Create a new file `src/core/browser/BrowserManager.ts`
+2. Move browser-related methods and logic from ClineProvider to BrowserManager
+
+### Step 5: Implement Service Locator Pattern
+
+Create a service locator to manage dependencies and reduce tight coupling.
+
+1. Create a new file `src/core/ServiceLocator.ts`
+2. Implement the service locator pattern:
+
+```typescript
+// src/core/ServiceLocator.ts
+export class ServiceLocator {
+	private static instance: ServiceLocator
+	private services: Map<string, any> = new Map()
+
+	private constructor() {}
+
+	static getInstance(): ServiceLocator {
+		if (!ServiceLocator.instance) {
+			ServiceLocator.instance = new ServiceLocator()
+		}
+		return ServiceLocator.instance
+	}
+
+	register<T>(key: string, service: T): void {
+		this.services.set(key, service)
+	}
+
+	get<T>(key: string): T {
+		return this.services.get(key)
+	}
+}
+```
+
+3. Update ClineProvider to use the service locator:
+
+```typescript
+// In ClineProvider.ts
+constructor(...) {
+    // ...
+    const serviceLocator = ServiceLocator.getInstance()
+    serviceLocator.register("settingsManager", this.settingsManager)
+    serviceLocator.register("modelManager", this.modelManager)
+    // ...
+}
+```
+
+### Step 6: Create ClineProviderFactory
+
+Create a factory to simplify the creation of ClineProvider instances.
+
+1. Create a new file `src/core/webview/ClineProviderFactory.ts`
+2. Implement the factory pattern:
+
+```typescript
+// src/core/webview/ClineProviderFactory.ts
+export class ClineProviderFactory {
+	static create(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel): ClineProvider {
+		// Initialize all dependencies
+		const settingsManager = new SettingsManager(context)
+		const modelManager = new ModelManager(context, outputChannel, settingsManager)
+		const taskHistoryManager = new TaskHistoryManager(context, settingsManager, outputChannel)
+		const webviewManager = new WebviewManager(context, outputChannel)
+		const systemPromptGenerator = new SystemPromptGenerator(context)
+
+		// Create and return ClineProvider instance
+		return new ClineProvider(
+			context,
+			outputChannel,
+			settingsManager,
+			modelManager,
+			taskHistoryManager,
+			webviewManager,
+			systemPromptGenerator,
+		)
+	}
+}
+```
+
+3. Update extension.ts to use the factory:
+
+```typescript
+// In extension.ts
+const provider = ClineProviderFactory.create(context, outputChannel)
+```
+
+### Step 7: Update Tests
+
+1. Create tests for all new classes:
+
+    - `src/core/webview/__tests__/WebviewManager.test.ts`
+    - `src/core/webview/commands/__tests__/WebviewCommandRegistry.test.ts`
+    - `src/core/prompts/__tests__/SystemPromptGenerator.test.ts`
+    - etc.
+
+2. Update existing tests to reflect the new structure
+3. Ensure all tests pass with the new implementation
+
+### Step 8: Update Documentation
+
+1. Update `cline_docs/settings.md` to reflect the new architecture
+2. Document the new classes and their responsibilities
+3. Update any other relevant documentation
+
+## Files to Update in Phase 3
+
+### New Files to Create
+
+1. **`src/core/webview/WebviewManager.ts`**
+
+    - Contains all webview-related functionality
+
+2. **`src/core/webview/commands/WebviewCommandHandler.ts`**
+
+    - Interface for command handlers
+
+3. **`src/core/webview/commands/WebviewCommandRegistry.ts`**
+
+    - Registry for command handlers
+
+4. **`src/core/webview/commands/SettingsCommandHandler.ts`**
+
+    - Handler for settings-related commands
+
+5. **`src/core/webview/commands/TaskCommandHandler.ts`**
+
+    - Handler for task-related commands
+
+6. **`src/core/prompts/SystemPromptGenerator.ts`**
+
+    - Generator for system prompts
+
+7. **`src/core/browser/BrowserManager.ts`**
+
+    - Manager for browser-related functionality
+
+8. **`src/core/ServiceLocator.ts`**
+
+    - Service locator for dependency management
+
+9. **`src/core/webview/ClineProviderFactory.ts`**
+    - Factory for creating ClineProvider instances
+
+### Existing Files to Modify
+
+1. **`src/core/webview/ClineProvider.ts`** (primary file)
+
+    - Update to use new components
+    - Remove extracted functionality
+    - Implement dependency injection
+
+2. **`src/extension.ts`**
+
+    - Update to use ClineProviderFactory
+
+3. **`src/core/webview/__tests__/ClineProvider.test.ts`**
+
+    - Update tests to reflect the new structure
+
+4. **`cline_docs/settings.md`**
+    - Update documentation to reflect the new architecture
+
+## Benefits and Impact of Phase 3
+
+### Benefits
+
+1. **Minimal ClineProvider Size**: By extracting all specialized functionality into dedicated components
+2. **Improved Architecture**: Clear separation of concerns with well-defined interfaces
+3. **Enhanced Testability**: Smaller, isolated components with clear responsibilities
+4. **Better Maintainability**: Each component has a single, well-defined responsibility
+5. **Simplified Extension**: Future additions will be more straightforward with a cleaner architecture
+6. **Reduced Coupling**: Components interact through well-defined interfaces
+
+### Impact
+
+The primary impact will be a significant reduction in the size and complexity of ClineProvider.ts. The code will be highly modular, with clear separation of concerns between different components.
+
+This refactoring will complete the transformation of the codebase into a modern, maintainable architecture that follows best practices for software design.
+
+## Implementation Strategy
+
+To minimize risk and ensure a smooth transition, we recommend implementing Phase 3 in the following order:
+
+1. Extract WebviewManager first, as this will immediately reduce the size of ClineProvider
+2. Implement the Command Pattern for webview messages next, as this will further reduce complexity
+3. Extract SystemPromptGenerator and BrowserManager
+4. Implement the Service Locator and ClineProviderFactory last, as these affect the overall architecture
+
+Each step should be completed with full test coverage before moving to the next step.
