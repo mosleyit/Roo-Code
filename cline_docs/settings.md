@@ -1,3 +1,47 @@
+# Settings Architecture
+
+The Cline extension uses a modular architecture for managing settings, with several key components:
+
+## SettingsManager
+
+The `SettingsManager` class is responsible for managing all settings in the extension. It provides methods for:
+
+- Reading and writing global state settings
+- Storing and retrieving secrets (API keys, etc.)
+- Managing settings persistence
+
+## ModelManager
+
+The `ModelManager` class handles all model-related operations:
+
+- Fetching available models from various providers (OpenAI, OpenRouter, Ollama, etc.)
+- Caching model information
+- Refreshing model lists
+
+## TaskHistoryManager
+
+The `TaskHistoryManager` class manages the history of tasks:
+
+- Storing task history
+- Retrieving tasks by ID
+- Exporting tasks to markdown
+- Deleting tasks
+
+## WebviewMessageHandlers
+
+The `WebviewMessageHandlers` class processes messages from the webview:
+
+- Handles settings-related messages
+- Processes task-related messages
+- Manages model-related messages
+- Handles API configuration messages
+
+## ClineProvider
+
+The `ClineProvider` class serves as the main controller, coordinating between these components and the webview.
+
+## Adding New Settings
+
 ## For All Settings
 
 1. Add the setting to ExtensionMessage.ts:
