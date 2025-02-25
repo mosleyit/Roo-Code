@@ -113,11 +113,13 @@ In Phase 2, we'll focus on eliminating the delegation pattern, removing duplicat
 - [x] Fix parameter shadowing in TaskHistoryManager.test.ts
 - [x] Verify all tests pass with the updated implementation
 
-### Step 5: Refactor Webview Message Handling ⬜ (Planned)
+### Step 5: Refactor Webview Message Handling ✅ (Completed)
 
-- [ ] Break down the large `setWebviewMessageListener` method into smaller, more focused methods
-- [ ] Group related message types together
-- [ ] Create separate handler methods for each group of message types
+- [x] Create a new `WebviewMessageHandlers` class in `src/core/webview/WebviewMessageHandlers.ts`
+- [x] Group related message types together into separate handler methods
+- [x] Create unit tests for the `WebviewMessageHandlers` class
+- [x] Integrate the `WebviewMessageHandlers` class into `ClineProvider.ts`
+- [x] Update property visibility in `ClineProvider` to match `ClineProviderInterface`
 
 ### Step 6: Update Tests ⬜ (Planned)
 
