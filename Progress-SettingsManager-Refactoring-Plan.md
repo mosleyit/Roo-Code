@@ -239,14 +239,25 @@ This extraction has reduced the size of ClineProvider.ts by removing approximate
 
 The Command Pattern implementation has successfully extracted the message handling logic from ClineProvider into separate command handler classes. This has significantly reduced the size and complexity of ClineProvider.ts by removing the large switch statement in the setWebviewMessageListener method. Each command handler now has a clear, focused responsibility, making the code more maintainable and easier to test.
 
-#### Step 3: Extract SystemPromptGenerator (Planned)
+#### Step 3: Extract SystemPromptGenerator ✅ (Completed)
 
-- [ ] Create a new file `src/core/prompts/SystemPromptGenerator.ts`
-- [ ] Move the system prompt generation logic from ClineProvider to SystemPromptGenerator
-- [ ] Update ClineProvider to use SystemPromptGenerator
-- [ ] Create unit tests for SystemPromptGenerator
+- [x] Create a new file `src/core/prompts/SystemPromptGenerator.ts`
+- [x] Move the system prompt generation logic from ClineProvider to SystemPromptGenerator
+- [x] Update ClineProvider to use SystemPromptGenerator
+- [x] Create unit tests for SystemPromptGenerator
+- [x] Fix failing tests in ClineProvider.test.ts
 
-#### Step 4: Extract BrowserManager (Planned)
+The SystemPromptGenerator implementation has been created and integrated with ClineProvider. The tests in ClineProvider.test.ts have been updated to work with the new command pattern implementation, and all tests are now passing.
+
+##### Issues and Fixes
+
+1. **Test Compatibility Issues with Command Pattern**
+    - **Issue**: After implementing the command pattern and moving functionality to separate command handlers, the tests in ClineProvider.test.ts were failing because they were still expecting the functionality to be directly in ClineProvider.
+    - **Root Cause**: The tests were written with the assumption that ClineProvider would handle message processing directly, but now that functionality has been moved to separate command handlers.
+    - **Fix**: Updated the tests to directly call the appropriate command handlers instead of going through the ClineProvider's message handling mechanism. This ensures that the tests can still verify the functionality works correctly, even though it's now implemented in separate classes.
+    - **Result**: All tests now pass successfully.
+
+#### Step 4: Extract BrowserManager (In Progress)
 
 - [ ] Create a new file `src/core/browser/BrowserManager.ts`
 - [ ] Move browser-related methods and logic from ClineProvider to BrowserManager

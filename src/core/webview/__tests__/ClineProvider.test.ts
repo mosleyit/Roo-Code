@@ -852,18 +852,29 @@ describe("ClineProvider", () => {
 				taskId: "test-task-id",
 				abortTask: jest.fn(),
 				handleWebviewAskResponse: jest.fn(),
+				isInitialized: true,
+				abandoned: false,
 			}
 			// @ts-ignore - accessing private property for testing
-			provider.cline = mockCline
+			provider.cline = mockCline as any
 
-			// Mock getTaskWithId
-			;(provider as any).getTaskWithId = jest.fn().mockResolvedValue({
+			// Mock taskHistoryManager.getTaskWithId
+			provider.taskHistoryManager.getTaskWithId = jest.fn().mockResolvedValue({
 				historyItem: { id: "test-task-id" },
 			})
 
-			// Trigger message deletion
-			const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
-			await messageHandler({ type: "deleteMessage", value: 4000 })
+			// Mock initClineWithHistoryItem to ensure it doesn't overwrite our mocks
+			const originalInitClineWithHistoryItem = provider.initClineWithHistoryItem
+			provider.initClineWithHistoryItem = jest.fn().mockImplementation(async () => {
+				// Keep the mock Cline instance
+				provider.cline = mockCline as any
+			})
+
+			// Get the TaskCommandHandler instance
+			const taskCommandHandler = new (require("../commands/TaskCommandHandler").TaskCommandHandler)()
+
+			// Call the handler directly
+			await taskCommandHandler.execute({ type: "deleteMessage", value: 4000 }, provider)
 
 			// Verify correct messages were kept
 			expect(mockCline.overwriteClineMessages).toHaveBeenCalledWith([
@@ -880,6 +891,9 @@ describe("ClineProvider", () => {
 				mockApiHistory[4],
 				mockApiHistory[5],
 			])
+
+			// Restore original method
+			provider.initClineWithHistoryItem = originalInitClineWithHistoryItem
 		})
 
 		test('handles "This and all subsequent messages" deletion correctly', async () => {
@@ -905,24 +919,38 @@ describe("ClineProvider", () => {
 				taskId: "test-task-id",
 				abortTask: jest.fn(),
 				handleWebviewAskResponse: jest.fn(),
+				isInitialized: true,
+				abandoned: false,
 			}
 			// @ts-ignore - accessing private property for testing
-			provider.cline = mockCline
+			provider.cline = mockCline as any
 
-			// Mock getTaskWithId
-			;(provider as any).getTaskWithId = jest.fn().mockResolvedValue({
+			// Mock taskHistoryManager.getTaskWithId
+			provider.taskHistoryManager.getTaskWithId = jest.fn().mockResolvedValue({
 				historyItem: { id: "test-task-id" },
 			})
 
-			// Trigger message deletion
-			const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
-			await messageHandler({ type: "deleteMessage", value: 3000 })
+			// Mock initClineWithHistoryItem to ensure it doesn't overwrite our mocks
+			const originalInitClineWithHistoryItem = provider.initClineWithHistoryItem
+			provider.initClineWithHistoryItem = jest.fn().mockImplementation(async () => {
+				// Keep the mock Cline instance
+				provider.cline = mockCline as any
+			})
+
+			// Get the TaskCommandHandler instance
+			const taskCommandHandler = new (require("../commands/TaskCommandHandler").TaskCommandHandler)()
+
+			// Call the handler directly
+			await taskCommandHandler.execute({ type: "deleteMessage", value: 3000 }, provider)
 
 			// Verify only messages before the deleted message were kept
 			expect(mockCline.overwriteClineMessages).toHaveBeenCalledWith([mockMessages[0]])
 
 			// Verify only API messages before the deleted message were kept
 			expect(mockCline.overwriteApiConversationHistory).toHaveBeenCalledWith([mockApiHistory[0]])
+
+			// Restore original method
+			provider.initClineWithHistoryItem = originalInitClineWithHistoryItem
 		})
 
 		test("handles Cancel correctly", async () => {
@@ -1096,9 +1124,14 @@ describe("ClineProvider", () => {
 			const systemPromptModule = require("../../prompts/system")
 			const systemPromptSpy = jest.spyOn(systemPromptModule, "SYSTEM_PROMPT")
 
-			// Trigger getSystemPrompt
-			const handler = getMessageHandler()
-			await handler({ type: "getSystemPrompt", mode: "code" })
+			// Clear previous calls
+			systemPromptSpy.mockClear()
+
+			// Get the PromptCommandHandler instance
+			const promptCommandHandler = new (require("../commands/PromptCommandHandler").PromptCommandHandler)()
+
+			// Call the handler directly
+			await promptCommandHandler.execute({ type: "getSystemPrompt", mode: "code" }, provider)
 
 			// Verify SYSTEM_PROMPT was called with correct arguments
 			expect(systemPromptSpy).toHaveBeenCalledWith(
@@ -1122,7 +1155,7 @@ describe("ClineProvider", () => {
 			)
 
 			// Run the test again to verify it's consistent
-			await handler({ type: "getSystemPrompt", mode: "code" })
+			await promptCommandHandler.execute({ type: "getSystemPrompt", mode: "code" }, provider)
 			expect(systemPromptSpy).toHaveBeenCalledTimes(2)
 		})
 

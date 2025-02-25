@@ -39,7 +39,7 @@ import { ApiConfigMeta, ExtensionMessage } from "../../shared/ExtensionMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
 import { checkoutDiffPayloadSchema, checkoutRestorePayloadSchema, WebviewMessage } from "../../shared/WebviewMessage"
 import { Mode, CustomModePrompts, PromptComponent, defaultModeSlug } from "../../shared/modes"
-import { SYSTEM_PROMPT } from "../prompts/system"
+import { SystemPromptGenerator } from "../prompts/SystemPromptGenerator"
 import { fileExistsAtPath } from "../../utils/fs"
 import { Cline } from "../Cline"
 import { openMention } from "../mentions"
@@ -92,6 +92,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	private webviewManager: WebviewManager
 	private commandRegistry: WebviewCommandRegistry
 	public experimentDefault = expDefault
+	private systemPromptGenerator: SystemPromptGenerator
 
 	/**
 	 * Register command handlers for different message types
@@ -213,6 +214,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.messageHandlers = new WebviewMessageHandlers(this)
 		this.webviewManager = new WebviewManager(this.context, this.outputChannel)
 		this.commandRegistry = new WebviewCommandRegistry()
+		this.systemPromptGenerator = new SystemPromptGenerator(this.context)
 		this.registerCommandHandlers()
 
 		// Initialize MCP Hub through the singleton manager
@@ -480,8 +482,13 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	private setWebviewMessageListener(webview: vscode.Webview) {
 		webview.onDidReceiveMessage(
 			async (message: WebviewMessage) => {
-				// Delegate message handling to WebviewMessageHandlers
+				// Delegate message handling to command registry
 				try {
+					// Execute the appropriate command handler for this message type
+					await this.commandRegistry.execute(message, this)
+
+					// Keep the switch statement for now as a fallback
+					// This will be removed once all message types are handled by command handlers
 					switch (message.type) {
 						case "webviewDidLaunch":
 							// Load custom modes first
@@ -1452,8 +1459,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			const mode = message.mode ?? defaultModeSlug
 			const customModes = await this.customModesManager.getCustomModes()
 
-			const systemPrompt = await SYSTEM_PROMPT(
-				this.context,
+			return this.systemPromptGenerator.generate(
 				cwd,
 				apiConfiguration.openRouterModelInfo?.supportsComputerUse ?? false,
 				mcpEnabled ? this.mcpHub : undefined,
@@ -1468,7 +1474,6 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 				experiments,
 				enableMcpServerCreation,
 			)
-			return systemPrompt
 		}
 	}
 
@@ -2357,8 +2362,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		experiments: Record<ExperimentId, boolean>,
 		enableMcpServerCreation: boolean,
 	) {
-		return SYSTEM_PROMPT(
-			this.context,
+		return this.systemPromptGenerator.generate(
 			cwd,
 			supportsComputerUse,
 			mcpHub,
