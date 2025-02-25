@@ -13,6 +13,17 @@ import { ModelManager } from "../models/ModelManager"
 import { TaskHistoryManager } from "../tasks/TaskHistoryManager"
 import { WebviewManager } from "./WebviewManager"
 import { WebviewMessageHandlers } from "./WebviewMessageHandlers"
+import { WebviewCommandRegistry } from "./commands/WebviewCommandRegistry"
+import { SettingsCommandHandler } from "./commands/SettingsCommandHandler"
+import { TaskCommandHandler } from "./commands/TaskCommandHandler"
+import { TaskHistoryCommandHandler } from "./commands/TaskHistoryCommandHandler"
+import { ModelCommandHandler } from "./commands/ModelCommandHandler"
+import { ApiConfigCommandHandler } from "./commands/ApiConfigCommandHandler"
+import { McpCommandHandler } from "./commands/McpCommandHandler"
+import { MiscCommandHandler } from "./commands/MiscCommandHandler"
+import { PromptCommandHandler } from "./commands/PromptCommandHandler"
+import { CustomModeCommandHandler } from "./commands/CustomModeCommandHandler"
+import { WebviewInitCommandHandler } from "./commands/WebviewInitCommandHandler"
 
 import { buildApiHandler } from "../../api"
 import { downloadTask } from "../../integrations/misc/export-markdown"
@@ -79,7 +90,111 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	public taskHistoryManager: TaskHistoryManager
 	private messageHandlers: WebviewMessageHandlers
 	private webviewManager: WebviewManager
+	private commandRegistry: WebviewCommandRegistry
 	public experimentDefault = expDefault
+
+	/**
+	 * Register command handlers for different message types
+	 */
+	private registerCommandHandlers() {
+		// Register settings-related command handlers
+		this.commandRegistry.register("customInstructions", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysAllowReadOnly", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysAllowWrite", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysAllowExecute", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysAllowBrowser", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysAllowMcp", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysAllowModeSwitch", new SettingsCommandHandler())
+		this.commandRegistry.register("diffEnabled", new SettingsCommandHandler())
+		this.commandRegistry.register("checkpointsEnabled", new SettingsCommandHandler())
+		this.commandRegistry.register("browserViewportSize", new SettingsCommandHandler())
+		this.commandRegistry.register("fuzzyMatchThreshold", new SettingsCommandHandler())
+		this.commandRegistry.register("alwaysApproveResubmit", new SettingsCommandHandler())
+		this.commandRegistry.register("requestDelaySeconds", new SettingsCommandHandler())
+		this.commandRegistry.register("rateLimitSeconds", new SettingsCommandHandler())
+		this.commandRegistry.register("preferredLanguage", new SettingsCommandHandler())
+		this.commandRegistry.register("writeDelayMs", new SettingsCommandHandler())
+		this.commandRegistry.register("terminalOutputLineLimit", new SettingsCommandHandler())
+		this.commandRegistry.register("screenshotQuality", new SettingsCommandHandler())
+		this.commandRegistry.register("maxOpenTabsContext", new SettingsCommandHandler())
+		this.commandRegistry.register("enhancementApiConfigId", new SettingsCommandHandler())
+		this.commandRegistry.register("autoApprovalEnabled", new SettingsCommandHandler())
+		this.commandRegistry.register("mode", new SettingsCommandHandler())
+		this.commandRegistry.register("allowedCommands", new SettingsCommandHandler())
+
+		// Register task-related command handlers
+		this.commandRegistry.register("newTask", new TaskCommandHandler())
+		this.commandRegistry.register("clearTask", new TaskCommandHandler())
+		this.commandRegistry.register("cancelTask", new TaskCommandHandler())
+		this.commandRegistry.register("askResponse", new TaskCommandHandler())
+		this.commandRegistry.register("deleteMessage", new TaskCommandHandler())
+		this.commandRegistry.register("exportCurrentTask", new TaskCommandHandler())
+		this.commandRegistry.register("checkpointDiff", new TaskCommandHandler())
+		this.commandRegistry.register("checkpointRestore", new TaskCommandHandler())
+
+		// Register task history-related command handlers
+		this.commandRegistry.register("showTaskWithId", new TaskHistoryCommandHandler())
+		this.commandRegistry.register("deleteTaskWithId", new TaskHistoryCommandHandler())
+		this.commandRegistry.register("exportTaskWithId", new TaskHistoryCommandHandler())
+
+		// Register model-related command handlers
+		this.commandRegistry.register("requestOllamaModels", new ModelCommandHandler())
+		this.commandRegistry.register("requestLmStudioModels", new ModelCommandHandler())
+		this.commandRegistry.register("requestVsCodeLmModels", new ModelCommandHandler())
+		this.commandRegistry.register("refreshGlamaModels", new ModelCommandHandler())
+		this.commandRegistry.register("refreshOpenRouterModels", new ModelCommandHandler())
+		this.commandRegistry.register("refreshOpenAiModels", new ModelCommandHandler())
+		this.commandRegistry.register("refreshUnboundModels", new ModelCommandHandler())
+		this.commandRegistry.register("refreshRequestyModels", new ModelCommandHandler())
+
+		// Register API configuration-related command handlers
+		this.commandRegistry.register("apiConfiguration", new ApiConfigCommandHandler())
+		this.commandRegistry.register("saveApiConfiguration", new ApiConfigCommandHandler())
+		this.commandRegistry.register("upsertApiConfiguration", new ApiConfigCommandHandler())
+		this.commandRegistry.register("renameApiConfiguration", new ApiConfigCommandHandler())
+		this.commandRegistry.register("loadApiConfiguration", new ApiConfigCommandHandler())
+		this.commandRegistry.register("deleteApiConfiguration", new ApiConfigCommandHandler())
+		this.commandRegistry.register("getListApiConfiguration", new ApiConfigCommandHandler())
+
+		// Register MCP-related command handlers
+		this.commandRegistry.register("openMcpSettings", new McpCommandHandler())
+		this.commandRegistry.register("deleteMcpServer", new McpCommandHandler())
+		this.commandRegistry.register("restartMcpServer", new McpCommandHandler())
+		this.commandRegistry.register("toggleToolAlwaysAllow", new McpCommandHandler())
+		this.commandRegistry.register("toggleMcpServer", new McpCommandHandler())
+		this.commandRegistry.register("mcpEnabled", new McpCommandHandler())
+		this.commandRegistry.register("enableMcpServerCreation", new McpCommandHandler())
+		this.commandRegistry.register("updateMcpTimeout", new McpCommandHandler())
+
+		// Register miscellaneous command handlers
+		this.commandRegistry.register("selectImages", new MiscCommandHandler())
+		this.commandRegistry.register("openImage", new MiscCommandHandler())
+		this.commandRegistry.register("openFile", new MiscCommandHandler())
+		this.commandRegistry.register("openMention", new MiscCommandHandler())
+		this.commandRegistry.register("openCustomModesSettings", new MiscCommandHandler())
+		this.commandRegistry.register("playSound", new MiscCommandHandler())
+		this.commandRegistry.register("soundEnabled", new MiscCommandHandler())
+		this.commandRegistry.register("soundVolume", new MiscCommandHandler())
+		this.commandRegistry.register("updateExperimental", new MiscCommandHandler())
+		this.commandRegistry.register("resetState", new MiscCommandHandler())
+		this.commandRegistry.register("searchCommits", new MiscCommandHandler())
+		this.commandRegistry.register("webviewDidLaunch", new MiscCommandHandler())
+
+		// Register prompt-related command handlers
+		this.commandRegistry.register("updateSupportPrompt", new PromptCommandHandler())
+		this.commandRegistry.register("resetSupportPrompt", new PromptCommandHandler())
+		this.commandRegistry.register("updatePrompt", new PromptCommandHandler())
+		this.commandRegistry.register("enhancePrompt", new PromptCommandHandler())
+		this.commandRegistry.register("getSystemPrompt", new PromptCommandHandler())
+		this.commandRegistry.register("copySystemPrompt", new PromptCommandHandler())
+
+		// Register custom mode-related command handlers
+		this.commandRegistry.register("updateCustomMode", new CustomModeCommandHandler())
+		this.commandRegistry.register("deleteCustomMode", new CustomModeCommandHandler())
+
+		// Register webview initialization-related command handlers
+		this.commandRegistry.register("didShowAnnouncement", new WebviewInitCommandHandler())
+	}
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
@@ -97,6 +212,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.taskHistoryManager = new TaskHistoryManager(this.context, this.settingsManager, this.outputChannel)
 		this.messageHandlers = new WebviewMessageHandlers(this)
 		this.webviewManager = new WebviewManager(this.context, this.outputChannel)
+		this.commandRegistry = new WebviewCommandRegistry()
+		this.registerCommandHandlers()
 
 		// Initialize MCP Hub through the singleton manager
 		McpServerManager.getInstance(this.context, this)

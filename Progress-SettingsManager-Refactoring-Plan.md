@@ -218,14 +218,26 @@ This extraction has reduced the size of ClineProvider.ts by removing approximate
     - **Fix**: Updated the WebviewManager mock in ClineProvider.test.ts to properly handle the webview's onDidReceiveMessage method and to forward postMessageToWebview calls to the webview's postMessage method. This ensures that the tests can still verify that messages are being sent to the webview correctly.
     - **Result**: All tests now pass successfully.
 
-#### Step 2: Implement Command Pattern for Webview Messages (Planned)
+#### Step 2: Implement Command Pattern for Webview Messages ✅ (Completed)
 
-- [ ] Create a new directory `src/core/webview/commands/`
-- [ ] Create an interface for command handlers in `WebviewCommandHandler.ts`
-- [ ] Create command handler implementations for each message type category
-- [ ] Create a command registry to manage handlers in `WebviewCommandRegistry.ts`
-- [ ] Update ClineProvider to use the command registry
-- [ ] Create unit tests for the command pattern implementation
+- [x] Create a new directory `src/core/webview/commands/`
+- [x] Create an interface for command handlers in `WebviewCommandHandler.ts`
+- [x] Create command handler implementations for each message type category:
+    - [x] SettingsCommandHandler
+    - [x] TaskCommandHandler
+    - [x] TaskHistoryCommandHandler
+    - [x] ModelCommandHandler
+    - [x] ApiConfigCommandHandler
+    - [x] McpCommandHandler
+    - [x] MiscCommandHandler
+    - [x] PromptCommandHandler
+    - [x] CustomModeCommandHandler
+    - [x] WebviewInitCommandHandler
+- [x] Create a command registry to manage handlers in `WebviewCommandRegistry.ts`
+- [x] Update ClineProvider to use the command registry
+- [x] Create unit tests for the command pattern implementation
+
+The Command Pattern implementation has successfully extracted the message handling logic from ClineProvider into separate command handler classes. This has significantly reduced the size and complexity of ClineProvider.ts by removing the large switch statement in the setWebviewMessageListener method. Each command handler now has a clear, focused responsibility, making the code more maintainable and easier to test.
 
 #### Step 3: Extract SystemPromptGenerator (Planned)
 
@@ -271,8 +283,8 @@ This extraction has reduced the size of ClineProvider.ts by removing approximate
 
 To minimize risk and ensure a smooth transition, we'll implement Phase 3 in the following order:
 
-1. Extract WebviewManager first, as this will immediately reduce the size of ClineProvider
-2. Implement the Command Pattern for webview messages next, as this will further reduce complexity
+1. Extract WebviewManager first, as this will immediately reduce the size of ClineProvider ✅
+2. Implement the Command Pattern for webview messages next, as this will further reduce complexity ✅
 3. Extract SystemPromptGenerator and BrowserManager
 4. Implement the Service Locator and ClineProviderFactory last, as these affect the overall architecture
 
