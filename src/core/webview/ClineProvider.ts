@@ -9,6 +9,7 @@ import * as vscode from "vscode"
 import simpleGit from "simple-git"
 
 import { SettingsManager, SecretKey, GlobalStateKey } from "../settings/SettingsManager"
+import { ModelManager } from "../models/ModelManager"
 
 import { buildApiHandler } from "../../api"
 import { downloadTask } from "../../integrations/misc/export-markdown"
@@ -72,6 +73,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	configManager: ConfigManager
 	customModesManager: CustomModesManager
 	private settingsManager: SettingsManager
+	private modelManager: ModelManager
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
@@ -85,6 +87,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			await this.postStateToWebview()
 		})
 		this.settingsManager = new SettingsManager(this.context)
+		this.modelManager = new ModelManager(this.context, this.outputChannel, this.settingsManager)
 
 		// Initialize MCP Hub through the singleton manager
 		McpServerManager.getInstance(this.context, this)
@@ -1706,176 +1709,36 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		return settingsDir
 	}
 
-	// Ollama
+	// Model-related methods delegated to ModelManager
 
 	async getOllamaModels(baseUrl?: string) {
-		try {
-			if (!baseUrl) {
-				baseUrl = "http://localhost:11434"
-			}
-			if (!URL.canParse(baseUrl)) {
-				return []
-			}
-			const response = await axios.get(`${baseUrl}/api/tags`)
-			const modelsArray = response.data?.models?.map((model: any) => model.name) || []
-			const models = [...new Set<string>(modelsArray)]
-			return models
-		} catch (error) {
-			return []
-		}
+		return this.modelManager.getOllamaModels(baseUrl)
 	}
-
-	// LM Studio
 
 	async getLmStudioModels(baseUrl?: string) {
-		try {
-			if (!baseUrl) {
-				baseUrl = "http://localhost:1234"
-			}
-			if (!URL.canParse(baseUrl)) {
-				return []
-			}
-			const response = await axios.get(`${baseUrl}/v1/models`)
-			const modelsArray = response.data?.data?.map((model: any) => model.id) || []
-			const models = [...new Set<string>(modelsArray)]
-			return models
-		} catch (error) {
-			return []
-		}
+		return this.modelManager.getLmStudioModels(baseUrl)
 	}
 
-	// VSCode LM API
 	private async getVsCodeLmModels() {
-		try {
-			const models = await vscode.lm.selectChatModels({})
-			return models || []
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error fetching VS Code LM models: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-			return []
-		}
+		return this.modelManager.getVsCodeLmModels()
 	}
-
-	// OpenAi
 
 	async getOpenAiModels(baseUrl?: string, apiKey?: string) {
-		try {
-			if (!baseUrl) {
-				return []
-			}
-
-			if (!URL.canParse(baseUrl)) {
-				return []
-			}
-
-			const config: Record<string, any> = {}
-			if (apiKey) {
-				config["headers"] = { Authorization: `Bearer ${apiKey}` }
-			}
-
-			const response = await axios.get(`${baseUrl}/models`, config)
-			const modelsArray = response.data?.data?.map((model: any) => model.id) || []
-			const models = [...new Set<string>(modelsArray)]
-			return models
-		} catch (error) {
-			return []
-		}
+		return this.modelManager.getOpenAiModels(baseUrl, apiKey)
 	}
 
-	// Requesty
 	async readRequestyModels(): Promise<Record<string, ModelInfo> | undefined> {
-		const requestyModelsFilePath = path.join(
-			await this.ensureCacheDirectoryExists(),
-			GlobalFileNames.requestyModels,
-		)
-		const fileExists = await fileExistsAtPath(requestyModelsFilePath)
-		if (fileExists) {
-			const fileContents = await fs.readFile(requestyModelsFilePath, "utf8")
-			return JSON.parse(fileContents)
-		}
-		return undefined
+		return this.modelManager.readRequestyModels()
 	}
 
 	async refreshRequestyModels(apiKey?: string) {
-		const requestyModelsFilePath = path.join(
-			await this.ensureCacheDirectoryExists(),
-			GlobalFileNames.requestyModels,
-		)
-
-		const models: Record<string, ModelInfo> = {}
-		try {
-			const config: Record<string, any> = {}
-			if (!apiKey) {
-				apiKey = (await this.getSecret("requestyApiKey")) as string
-			}
-
-			if (!apiKey) {
-				this.outputChannel.appendLine("No Requesty API key found")
-				return models
-			}
-
-			if (apiKey) {
-				config["headers"] = { Authorization: `Bearer ${apiKey}` }
-			}
-
-			const response = await axios.get("https://router.requesty.ai/v1/models", config)
-
-			if (response.data) {
-				const rawModels = response.data.data
-				const parsePrice = (price: any) => {
-					if (price) {
-						return parseFloat(price) * 1_000_000
-					}
-					return undefined
-				}
-				for (const rawModel of rawModels) {
-					const modelInfo: ModelInfo = {
-						maxTokens: rawModel.max_output_tokens,
-						contextWindow: rawModel.context_window,
-						supportsImages: rawModel.support_image,
-						supportsComputerUse: rawModel.support_computer_use,
-						supportsPromptCache: rawModel.supports_caching,
-						inputPrice: parsePrice(rawModel.input_price),
-						outputPrice: parsePrice(rawModel.output_price),
-						description: rawModel.description,
-						cacheWritesPrice: parsePrice(rawModel.caching_price),
-						cacheReadsPrice: parsePrice(rawModel.cached_price),
-					}
-
-					models[rawModel.id] = modelInfo
-				}
-			} else {
-				this.outputChannel.appendLine("Invalid response from Requesty API")
-			}
-			await fs.writeFile(requestyModelsFilePath, JSON.stringify(models))
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error fetching Requesty models: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-		}
-
+		const models = await this.modelManager.refreshRequestyModels(apiKey)
 		await this.postMessageToWebview({ type: "requestyModels", requestyModels: models })
 		return models
 	}
 
-	// OpenRouter
-
 	async handleOpenRouterCallback(code: string) {
-		let apiKey: string
-		try {
-			const response = await axios.post("https://openrouter.ai/api/v1/auth/keys", { code })
-			if (response.data && response.data.key) {
-				apiKey = response.data.key
-			} else {
-				throw new Error("Invalid response from OpenRouter API")
-			}
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error exchanging code for API key: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-			throw error
-		}
+		const apiKey = await this.modelManager.handleOpenRouterCallback(code)
 
 		const openrouter: ApiProvider = "openrouter"
 		await this.updateGlobalState("apiProvider", openrouter)
@@ -1884,30 +1747,17 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		if (this.cline) {
 			this.cline.api = buildApiHandler({ apiProvider: openrouter, openRouterApiKey: apiKey })
 		}
-		// await this.postMessageToWebview({ type: "action", action: "settingsButtonClicked" }) // bad ux if user is on welcome
 	}
 
 	private async ensureCacheDirectoryExists(): Promise<string> {
+		// This is still needed for other parts of the code
 		const cacheDir = path.join(this.context.globalStorageUri.fsPath, "cache")
 		await fs.mkdir(cacheDir, { recursive: true })
 		return cacheDir
 	}
 
 	async handleGlamaCallback(code: string) {
-		let apiKey: string
-		try {
-			const response = await axios.post("https://glama.ai/api/gateway/v1/auth/exchange-code", { code })
-			if (response.data && response.data.apiKey) {
-				apiKey = response.data.apiKey
-			} else {
-				throw new Error("Invalid response from Glama API")
-			}
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error exchanging code for API key: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-			throw error
-		}
+		const apiKey = await this.modelManager.handleGlamaCallback(code)
 
 		const glama: ApiProvider = "glama"
 		await this.updateGlobalState("apiProvider", glama)
@@ -1919,224 +1769,34 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 				glamaApiKey: apiKey,
 			})
 		}
-		// await this.postMessageToWebview({ type: "action", action: "settingsButtonClicked" }) // bad ux if user is on welcome
-	}
-
-	private async readModelsFromCache(filename: string): Promise<Record<string, ModelInfo> | undefined> {
-		const filePath = path.join(await this.ensureCacheDirectoryExists(), filename)
-		const fileExists = await fileExistsAtPath(filePath)
-		if (fileExists) {
-			const fileContents = await fs.readFile(filePath, "utf8")
-			return JSON.parse(fileContents)
-		}
-		return undefined
 	}
 
 	async readGlamaModels(): Promise<Record<string, ModelInfo> | undefined> {
-		return this.readModelsFromCache(GlobalFileNames.glamaModels)
+		return this.modelManager.readGlamaModels()
 	}
 
 	async refreshGlamaModels() {
-		const glamaModelsFilePath = path.join(await this.ensureCacheDirectoryExists(), GlobalFileNames.glamaModels)
-
-		const models: Record<string, ModelInfo> = {}
-		try {
-			const response = await axios.get("https://glama.ai/api/gateway/v1/models")
-			/*
-				{
-					"added": "2024-12-24T15:12:49.324Z",
-					"capabilities": [
-						"adjustable_safety_settings",
-						"caching",
-						"code_execution",
-						"function_calling",
-						"json_mode",
-						"json_schema",
-						"system_instructions",
-						"tuning",
-						"input:audio",
-						"input:image",
-						"input:text",
-						"input:video",
-						"output:text"
-					],
-					"id": "google-vertex/gemini-1.5-flash-002",
-					"maxTokensInput": 1048576,
-					"maxTokensOutput": 8192,
-					"pricePerToken": {
-						"cacheRead": null,
-						"cacheWrite": null,
-						"input": "0.000000075",
-						"output": "0.0000003"
-					}
-				}
-			*/
-			if (response.data) {
-				const rawModels = response.data
-				const parsePrice = (price: any) => {
-					if (price) {
-						return parseFloat(price) * 1_000_000
-					}
-					return undefined
-				}
-				for (const rawModel of rawModels) {
-					const modelInfo: ModelInfo = {
-						maxTokens: rawModel.maxTokensOutput,
-						contextWindow: rawModel.maxTokensInput,
-						supportsImages: rawModel.capabilities?.includes("input:image"),
-						supportsComputerUse: rawModel.capabilities?.includes("computer_use"),
-						supportsPromptCache: rawModel.capabilities?.includes("caching"),
-						inputPrice: parsePrice(rawModel.pricePerToken?.input),
-						outputPrice: parsePrice(rawModel.pricePerToken?.output),
-						description: undefined,
-						cacheWritesPrice: parsePrice(rawModel.pricePerToken?.cacheWrite),
-						cacheReadsPrice: parsePrice(rawModel.pricePerToken?.cacheRead),
-					}
-
-					models[rawModel.id] = modelInfo
-				}
-			} else {
-				this.outputChannel.appendLine("Invalid response from Glama API")
-			}
-			await fs.writeFile(glamaModelsFilePath, JSON.stringify(models))
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error fetching Glama models: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-		}
-
+		const models = await this.modelManager.refreshGlamaModels()
 		await this.postMessageToWebview({ type: "glamaModels", glamaModels: models })
 		return models
 	}
 
 	async readOpenRouterModels(): Promise<Record<string, ModelInfo> | undefined> {
-		return this.readModelsFromCache(GlobalFileNames.openRouterModels)
+		return this.modelManager.readOpenRouterModels()
 	}
 
 	async refreshOpenRouterModels() {
-		const openRouterModelsFilePath = path.join(
-			await this.ensureCacheDirectoryExists(),
-			GlobalFileNames.openRouterModels,
-		)
-
-		const models: Record<string, ModelInfo> = {}
-
-		try {
-			const response = await axios.get("https://openrouter.ai/api/v1/models")
-
-			if (response.data?.data) {
-				const rawModels = response.data.data
-				const parsePrice = (price: any) => {
-					if (price) {
-						return parseFloat(price) * 1_000_000
-					}
-					return undefined
-				}
-
-				for (const rawModel of rawModels) {
-					const modelInfo: ModelInfo = {
-						maxTokens: rawModel.top_provider?.max_completion_tokens,
-						contextWindow: rawModel.context_length,
-						supportsImages: rawModel.architecture?.modality?.includes("image"),
-						supportsPromptCache: false,
-						inputPrice: parsePrice(rawModel.pricing?.prompt),
-						outputPrice: parsePrice(rawModel.pricing?.completion),
-						description: rawModel.description,
-					}
-
-					switch (rawModel.id) {
-						case "anthropic/claude-3.7-sonnet":
-						case "anthropic/claude-3.7-sonnet:beta":
-						case "anthropic/claude-3.5-sonnet":
-						case "anthropic/claude-3.5-sonnet:beta":
-							// NOTE: this needs to be synced with api.ts/openrouter default model info.
-							modelInfo.supportsComputerUse = true
-							modelInfo.supportsPromptCache = true
-							modelInfo.cacheWritesPrice = 3.75
-							modelInfo.cacheReadsPrice = 0.3
-							break
-						case "anthropic/claude-3.5-sonnet-20240620":
-						case "anthropic/claude-3.5-sonnet-20240620:beta":
-							modelInfo.supportsPromptCache = true
-							modelInfo.cacheWritesPrice = 3.75
-							modelInfo.cacheReadsPrice = 0.3
-							break
-						case "anthropic/claude-3-5-haiku":
-						case "anthropic/claude-3-5-haiku:beta":
-						case "anthropic/claude-3-5-haiku-20241022":
-						case "anthropic/claude-3-5-haiku-20241022:beta":
-						case "anthropic/claude-3.5-haiku":
-						case "anthropic/claude-3.5-haiku:beta":
-						case "anthropic/claude-3.5-haiku-20241022":
-						case "anthropic/claude-3.5-haiku-20241022:beta":
-							modelInfo.supportsPromptCache = true
-							modelInfo.cacheWritesPrice = 1.25
-							modelInfo.cacheReadsPrice = 0.1
-							break
-						case "anthropic/claude-3-opus":
-						case "anthropic/claude-3-opus:beta":
-							modelInfo.supportsPromptCache = true
-							modelInfo.cacheWritesPrice = 18.75
-							modelInfo.cacheReadsPrice = 1.5
-							break
-						case "anthropic/claude-3-haiku":
-						case "anthropic/claude-3-haiku:beta":
-							modelInfo.supportsPromptCache = true
-							modelInfo.cacheWritesPrice = 0.3
-							modelInfo.cacheReadsPrice = 0.03
-							break
-					}
-
-					models[rawModel.id] = modelInfo
-				}
-			} else {
-				this.outputChannel.appendLine("Invalid response from OpenRouter API")
-			}
-			await fs.writeFile(openRouterModelsFilePath, JSON.stringify(models))
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error fetching OpenRouter models: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-		}
-
+		const models = await this.modelManager.refreshOpenRouterModels()
 		await this.postMessageToWebview({ type: "openRouterModels", openRouterModels: models })
 		return models
 	}
 
 	async readUnboundModels(): Promise<Record<string, ModelInfo> | undefined> {
-		return this.readModelsFromCache(GlobalFileNames.unboundModels)
+		return this.modelManager.readUnboundModels()
 	}
 
 	async refreshUnboundModels() {
-		const unboundModelsFilePath = path.join(await this.ensureCacheDirectoryExists(), GlobalFileNames.unboundModels)
-
-		const models: Record<string, ModelInfo> = {}
-		try {
-			const response = await axios.get("https://api.getunbound.ai/models")
-
-			if (response.data) {
-				const rawModels: Record<string, any> = response.data
-				for (const [modelId, model] of Object.entries(rawModels)) {
-					models[modelId] = {
-						maxTokens: model?.maxTokens ? parseInt(model.maxTokens) : undefined,
-						contextWindow: model?.contextWindow ? parseInt(model.contextWindow) : 0,
-						supportsImages: model?.supportsImages ?? false,
-						supportsPromptCache: model?.supportsPromptCaching ?? false,
-						supportsComputerUse: model?.supportsComputerUse ?? false,
-						inputPrice: model?.inputTokenPrice ? parseFloat(model.inputTokenPrice) : undefined,
-						outputPrice: model?.outputTokenPrice ? parseFloat(model.outputTokenPrice) : undefined,
-						cacheWritesPrice: model?.cacheWritePrice ? parseFloat(model.cacheWritePrice) : undefined,
-						cacheReadsPrice: model?.cacheReadPrice ? parseFloat(model.cacheReadPrice) : undefined,
-					}
-				}
-			}
-			await fs.writeFile(unboundModelsFilePath, JSON.stringify(models))
-		} catch (error) {
-			this.outputChannel.appendLine(
-				`Error fetching Unbound models: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-			)
-		}
-
+		const models = await this.modelManager.refreshUnboundModels()
 		await this.postMessageToWebview({ type: "unboundModels", unboundModels: models })
 		return models
 	}
