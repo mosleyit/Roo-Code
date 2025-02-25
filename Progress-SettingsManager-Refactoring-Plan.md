@@ -63,7 +63,7 @@ Phase 1 of the refactoring has been completed successfully. We've created the Se
 
 These issues will be addressed in Phase 2 of the refactoring.
 
-## Phase 2: Complete Refactoring (Planned)
+## Phase 2: Complete Refactoring (In Progress)
 
 In Phase 2, we'll focus on eliminating the delegation pattern, removing duplicate code, and further reducing the size of ClineProvider.ts.
 
@@ -83,17 +83,27 @@ In Phase 2, we'll focus on eliminating the delegation pattern, removing duplicat
 - [x] Add updateTaskHistory method to support Cline.ts functionality
 - [x] Run tests to verify all functionality works correctly
 
-### Step 3: Extract Model Fetching Logic ⬜ (Planned)
+### Step 3: Extract Model Fetching Logic ✅ (Completed)
 
-- [ ] Create a new `ModelManager` class in `src/core/models/ModelManager.ts`
-- [ ] Move all model fetching methods from ClineProvider to ModelManager
-- [ ] Update ClineProvider to use ModelManager
+- [x] Create a new `ModelManager` class in `src/core/models/ModelManager.ts`
+- [x] Move all model fetching methods from ClineProvider to ModelManager
+- [x] Update ClineProvider to use ModelManager
+- [x] Create unit tests for ModelManager in `src/core/models/__tests__/ModelManager.test.ts`
+- [x] Ensure all tests pass with the new implementation
 
-### Step 4: Extract Task History Management ⬜ (Planned)
+### Step 3.1: Fix ModelManager Tests ✅ (Completed)
+
+- [x] Identify and fix issues with ModelManager tests
+- [x] Update test assertions to properly check for model properties
+- [x] Verify all tests pass with the updated implementation
+
+### Step 4: Extract Task History Management 🔄 (In Progress)
 
 - [ ] Create a new `TaskHistoryManager` class in `src/core/tasks/TaskHistoryManager.ts`
 - [ ] Move all task history related methods from ClineProvider to TaskHistoryManager
 - [ ] Update ClineProvider to use TaskHistoryManager
+- [ ] Create unit tests for TaskHistoryManager in `src/core/tasks/__tests__/TaskHistoryManager.test.ts`
+- [ ] Ensure all tests pass with the new implementation
 
 ### Step 5: Refactor Webview Message Handling ⬜ (Planned)
 
@@ -115,10 +125,27 @@ In Phase 2, we'll focus on eliminating the delegation pattern, removing duplicat
 
 ## Current Status
 
-Phase 1 is complete, and we're ready to begin Phase 2. The plan for Phase 2 has been outlined in the [SettingsManager-Refactoring-Plan.md](./SettingsManager-Refactoring-Plan.md) document.
+Phase 1 is complete, and we're making good progress on Phase 2. We've completed Steps 1, 2, and 3 of Phase 2:
+
+- Removed duplicate type definitions
+- Removed delegation methods
+- Extracted model fetching logic into a dedicated ModelManager class
+
+The codebase is now more modular and easier to maintain, with clear separation of concerns between settings management and model management.
 
 ## Next Steps
 
-1. Begin implementing Step 1 of Phase 2: Remove Duplicate Type Definitions
-2. Proceed with the remaining steps of Phase 2 in order
-3. Continuously test and validate the changes to ensure the refactoring doesn't break existing functionality
+1. Implement Step 4 of Phase 2: Extract Task History Management
+
+    - Create a new `TaskHistoryManager` class
+    - Move all task history related methods from ClineProvider to TaskHistoryManager
+    - Update ClineProvider to use TaskHistoryManager
+
+2. Proceed with Step 5: Refactor Webview Message Handling
+
+    - Break down the large `setWebviewMessageListener` method into smaller, more focused methods
+    - Group related message types together
+
+3. Complete the remaining steps of Phase 2 (Update Tests and Documentation)
+
+4. Continuously test and validate the changes to ensure the refactoring doesn't break existing functionality
