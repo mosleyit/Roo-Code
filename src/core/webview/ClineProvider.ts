@@ -8,7 +8,7 @@ import * as path from "path"
 import * as vscode from "vscode"
 import simpleGit from "simple-git"
 
-import { SettingsManager } from "../settings/SettingsManager"
+import { SettingsManager, SecretKey, GlobalStateKey } from "../settings/SettingsManager"
 
 import { buildApiHandler } from "../../api"
 import { downloadTask } from "../../integrations/misc/export-markdown"
@@ -47,90 +47,6 @@ https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default
 
 https://github.com/KumarVariable/vscode-extension-sidebar-html/blob/master/src/customSidebarViewProvider.ts
 */
-
-type SecretKey =
-	| "apiKey"
-	| "glamaApiKey"
-	| "openRouterApiKey"
-	| "awsAccessKey"
-	| "awsSecretKey"
-	| "awsSessionToken"
-	| "openAiApiKey"
-	| "geminiApiKey"
-	| "openAiNativeApiKey"
-	| "deepSeekApiKey"
-	| "mistralApiKey"
-	| "unboundApiKey"
-	| "requestyApiKey"
-type GlobalStateKey =
-	| "apiProvider"
-	| "apiModelId"
-	| "glamaModelId"
-	| "glamaModelInfo"
-	| "awsRegion"
-	| "awsUseCrossRegionInference"
-	| "awsProfile"
-	| "awsUseProfile"
-	| "vertexProjectId"
-	| "vertexRegion"
-	| "lastShownAnnouncementId"
-	| "customInstructions"
-	| "alwaysAllowReadOnly"
-	| "alwaysAllowWrite"
-	| "alwaysAllowExecute"
-	| "alwaysAllowBrowser"
-	| "alwaysAllowMcp"
-	| "alwaysAllowModeSwitch"
-	| "taskHistory"
-	| "openAiBaseUrl"
-	| "openAiModelId"
-	| "openAiCustomModelInfo"
-	| "openAiUseAzure"
-	| "ollamaModelId"
-	| "ollamaBaseUrl"
-	| "lmStudioModelId"
-	| "lmStudioBaseUrl"
-	| "anthropicBaseUrl"
-	| "azureApiVersion"
-	| "openAiStreamingEnabled"
-	| "openRouterModelId"
-	| "openRouterModelInfo"
-	| "openRouterBaseUrl"
-	| "openRouterUseMiddleOutTransform"
-	| "allowedCommands"
-	| "soundEnabled"
-	| "soundVolume"
-	| "diffEnabled"
-	| "checkpointsEnabled"
-	| "browserViewportSize"
-	| "screenshotQuality"
-	| "fuzzyMatchThreshold"
-	| "preferredLanguage" // Language setting for Cline's communication
-	| "writeDelayMs"
-	| "terminalOutputLineLimit"
-	| "mcpEnabled"
-	| "enableMcpServerCreation"
-	| "alwaysApproveResubmit"
-	| "requestDelaySeconds"
-	| "rateLimitSeconds"
-	| "currentApiConfigName"
-	| "listApiConfigMeta"
-	| "vsCodeLmModelSelector"
-	| "mode"
-	| "modeApiConfigs"
-	| "customModePrompts"
-	| "customSupportPrompts"
-	| "enhancementApiConfigId"
-	| "experiments" // Map of experiment IDs to their enabled state
-	| "autoApprovalEnabled"
-	| "customModes" // Array of custom modes
-	| "unboundModelId"
-	| "requestyModelId"
-	| "requestyModelInfo"
-	| "unboundModelInfo"
-	| "modelTemperature"
-	| "mistralCodestralUrl"
-	| "maxOpenTabsContext"
 
 export const GlobalFileNames = {
 	apiConversationHistory: "api_conversation_history.json",
@@ -2785,27 +2701,22 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		}
 	}
 
-	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {
-		const history = ((await this.getGlobalState("taskHistory")) as HistoryItem[] | undefined) || []
-		const existingItemIndex = history.findIndex((h) => h.id === item.id)
+	// Helper methods for accessing SettingsManager
 
-		if (existingItemIndex !== -1) {
-			history[existingItemIndex] = item
-		} else {
-			history.push(item)
-		}
-		await this.updateGlobalState("taskHistory", history)
-		return history
-	}
-
-	// global
-
-	async updateGlobalState(key: GlobalStateKey, value: any) {
+	public async updateGlobalState(key: GlobalStateKey, value: any) {
 		await this.settingsManager.updateGlobalState(key, value)
 	}
 
-	async getGlobalState(key: GlobalStateKey) {
+	public async getGlobalState(key: GlobalStateKey) {
 		return await this.settingsManager.getGlobalState(key)
+	}
+
+	public async storeSecret(key: SecretKey, value?: string) {
+		await this.settingsManager.storeSecret(key, value)
+	}
+
+	public async getSecret(key: SecretKey) {
+		return await this.settingsManager.getSecret(key)
 	}
 
 	// workspace
@@ -2816,16 +2727,6 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 
 	private async getWorkspaceState(key: string) {
 		return await this.context.workspaceState.get(key)
-	}
-
-	// secrets
-
-	public async storeSecret(key: SecretKey, value?: string) {
-		await this.settingsManager.storeSecret(key, value)
-	}
-
-	private async getSecret(key: SecretKey) {
-		return await this.settingsManager.getSecret(key)
 	}
 
 	// dev
@@ -2877,5 +2778,19 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	// Add public getter
 	public getMcpHub(): McpHub | undefined {
 		return this.mcpHub
+	}
+
+	// Task history management
+	public async updateTaskHistory(historyItem: HistoryItem) {
+		const taskHistory = ((await this.getGlobalState("taskHistory")) as HistoryItem[]) || []
+		const existingIndex = taskHistory.findIndex((item) => item.id === historyItem.id)
+
+		if (existingIndex !== -1) {
+			taskHistory[existingIndex] = historyItem
+		} else {
+			taskHistory.push(historyItem)
+		}
+
+		await this.updateGlobalState("taskHistory", taskHistory)
 	}
 }
