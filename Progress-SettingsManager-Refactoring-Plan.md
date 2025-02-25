@@ -97,13 +97,21 @@ In Phase 2, we'll focus on eliminating the delegation pattern, removing duplicat
 - [x] Update test assertions to properly check for model properties
 - [x] Verify all tests pass with the updated implementation
 
-### Step 4: Extract Task History Management 🔄 (In Progress)
+### Step 4: Extract Task History Management ✅ (Completed)
 
-- [ ] Create a new `TaskHistoryManager` class in `src/core/tasks/TaskHistoryManager.ts`
-- [ ] Move all task history related methods from ClineProvider to TaskHistoryManager
-- [ ] Update ClineProvider to use TaskHistoryManager
-- [ ] Create unit tests for TaskHistoryManager in `src/core/tasks/__tests__/TaskHistoryManager.test.ts`
-- [ ] Ensure all tests pass with the new implementation
+- [x] Create a new `TaskHistoryManager` class in `src/core/tasks/TaskHistoryManager.ts`
+- [x] Move all task history related methods from ClineProvider to TaskHistoryManager
+- [x] Update ClineProvider to use TaskHistoryManager
+- [x] Create unit tests for TaskHistoryManager in `src/core/tasks/__tests__/TaskHistoryManager.test.ts`
+- [x] Ensure all tests pass with the new implementation
+
+### Step 4.1: Fix TaskHistoryManager Tests ✅ (Completed)
+
+- [x] Identify and fix issues with TaskHistoryManager tests
+- [x] Fix fs/promises import in TaskHistoryManager.ts
+- [x] Update fs/promises mock to include unlink, rm, and rmdir functions
+- [x] Fix parameter shadowing in TaskHistoryManager.test.ts
+- [x] Verify all tests pass with the updated implementation
 
 ### Step 5: Refactor Webview Message Handling ⬜ (Planned)
 
@@ -125,27 +133,38 @@ In Phase 2, we'll focus on eliminating the delegation pattern, removing duplicat
 
 ## Current Status
 
-Phase 1 is complete, and we're making good progress on Phase 2. We've completed Steps 1, 2, and 3 of Phase 2:
+Phase 1 is complete, and we're making excellent progress on Phase 2. We've completed Steps 1, 2, 3, and 4 of Phase 2:
 
 - Removed duplicate type definitions
 - Removed delegation methods
 - Extracted model fetching logic into a dedicated ModelManager class
+- Extracted task history management into a dedicated TaskHistoryManager class
 
-The codebase is now more modular and easier to maintain, with clear separation of concerns between settings management and model management.
+The codebase is now more modular and easier to maintain, with clear separation of concerns between settings management, model management, and task history management.
 
 ## Next Steps
 
-1. Implement Step 4 of Phase 2: Extract Task History Management
-
-    - Create a new `TaskHistoryManager` class
-    - Move all task history related methods from ClineProvider to TaskHistoryManager
-    - Update ClineProvider to use TaskHistoryManager
-
-2. Proceed with Step 5: Refactor Webview Message Handling
+1. Proceed with Step 5: Refactor Webview Message Handling
 
     - Break down the large `setWebviewMessageListener` method into smaller, more focused methods
     - Group related message types together
+    - Create separate handler methods for each group of message types
 
-3. Complete the remaining steps of Phase 2 (Update Tests and Documentation)
+2. Complete the remaining steps of Phase 2 (Update Tests and Documentation)
 
-4. Continuously test and validate the changes to ensure the refactoring doesn't break existing functionality
+    - Update ClineProvider tests to reflect the new structure
+    - Add tests for the new classes (ModelManager, TaskHistoryManager)
+    - Update documentation to reflect the new architecture
+
+3. Continuously test and validate the changes to ensure the refactoring doesn't break existing functionality
+
+## Issues and Fixes in Phase 2
+
+1. **TaskHistoryManager Import Issue**
+    - **Issue**: After implementing the TaskHistoryManager class, the tests were failing with an error: `TypeError: fs.unlink is not a function`.
+    - **Root Cause**: The fs/promises module was imported incorrectly in TaskHistoryManager.ts, and the mock implementation in fs/promises.ts didn't include the unlink, rm, and rmdir functions.
+    - **Fix**:
+        - Updated the import statement in TaskHistoryManager.ts from `import fs from "fs/promises"` to `import * as fs from "fs/promises"`.
+        - Added mock implementations for unlink, rm, and rmdir functions in src/**mocks**/fs/promises.ts.
+        - Fixed parameter shadowing in TaskHistoryManager.test.ts where a parameter named `path` was shadowing the imported `path` module.
+    - **Result**: All tests now pass successfully.
