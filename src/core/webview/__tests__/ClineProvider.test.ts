@@ -146,6 +146,10 @@ jest.mock("vscode", () => ({
 		Development: 2,
 		Test: 3,
 	},
+	EventEmitter: jest.fn().mockImplementation(() => ({
+		event: jest.fn(),
+		fire: jest.fn(),
+	})),
 }))
 
 // Mock sound utility

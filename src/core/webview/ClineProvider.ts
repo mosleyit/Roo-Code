@@ -8,6 +8,8 @@ import * as path from "path"
 import * as vscode from "vscode"
 import simpleGit from "simple-git"
 
+import { SettingsManager } from "../settings/SettingsManager"
+
 import { buildApiHandler } from "../../api"
 import { downloadTask } from "../../integrations/misc/export-markdown"
 import { openFile, openImage } from "../../integrations/misc/open-file"
@@ -153,6 +155,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	private latestAnnouncementId = "jan-21-2025-custom-modes" // update to some unique identifier when we add a new announcement
 	configManager: ConfigManager
 	customModesManager: CustomModesManager
+	private settingsManager: SettingsManager
 
 	constructor(
 		readonly context: vscode.ExtensionContext,
@@ -165,6 +168,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.customModesManager = new CustomModesManager(this.context, async () => {
 			await this.postStateToWebview()
 		})
+		this.settingsManager = new SettingsManager(this.context)
 
 		// Initialize MCP Hub through the singleton manager
 		McpServerManager.getInstance(this.context, this)
@@ -2797,11 +2801,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	// global
 
 	async updateGlobalState(key: GlobalStateKey, value: any) {
-		await this.context.globalState.update(key, value)
+		await this.settingsManager.updateGlobalState(key, value)
 	}
 
 	async getGlobalState(key: GlobalStateKey) {
-		return await this.context.globalState.get(key)
+		return await this.settingsManager.getGlobalState(key)
 	}
 
 	// workspace
@@ -2814,28 +2818,14 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		return await this.context.workspaceState.get(key)
 	}
 
-	// private async clearState() {
-	// 	this.context.workspaceState.keys().forEach((key) => {
-	// 		this.context.workspaceState.update(key, undefined)
-	// 	})
-	// 	this.context.globalState.keys().forEach((key) => {
-	// 		this.context.globalState.update(key, undefined)
-	// 	})
-	// 	this.context.secrets.delete("apiKey")
-	// }
-
 	// secrets
 
 	public async storeSecret(key: SecretKey, value?: string) {
-		if (value) {
-			await this.context.secrets.store(key, value)
-		} else {
-			await this.context.secrets.delete(key)
-		}
+		await this.settingsManager.storeSecret(key, value)
 	}
 
 	private async getSecret(key: SecretKey) {
-		return await this.context.secrets.get(key)
+		return await this.settingsManager.getSecret(key)
 	}
 
 	// dev
@@ -2851,33 +2841,19 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			return
 		}
 
-		for (const key of this.context.globalState.keys()) {
-			await this.context.globalState.update(key, undefined)
-		}
-		const secretKeys: SecretKey[] = [
-			"apiKey",
-			"glamaApiKey",
-			"openRouterApiKey",
-			"awsAccessKey",
-			"awsSecretKey",
-			"awsSessionToken",
-			"openAiApiKey",
-			"geminiApiKey",
-			"openAiNativeApiKey",
-			"deepSeekApiKey",
-			"mistralApiKey",
-			"unboundApiKey",
-			"requestyApiKey",
-		]
-		for (const key of secretKeys) {
-			await this.storeSecret(key, undefined)
-		}
+		// Reset all settings using SettingsManager
+		await this.settingsManager.resetAllSettings()
+
+		// Reset configs and custom modes
 		await this.configManager.resetAllConfigs()
 		await this.customModesManager.resetCustomModes()
+
+		// Clear current task
 		if (this.cline) {
 			this.cline.abortTask()
 			this.cline = undefined
 		}
+
 		await this.postStateToWebview()
 		await this.postMessageToWebview({ type: "action", action: "chatButtonClicked" })
 	}
