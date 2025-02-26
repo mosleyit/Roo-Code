@@ -2,8 +2,9 @@ import { memo, useCallback, useMemo, useState } from "react"
 import { useDebounce, useEvent } from "react-use"
 import { Checkbox, Dropdown, Pane, type DropdownOption } from "vscrui"
 import { VSCodeLink, VSCodeRadio, VSCodeRadioGroup, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
-import { TemperatureControl } from "./TemperatureControl"
 import * as vscodemodels from "vscode"
+
+import { Slider } from "@/components/ui"
 
 import {
 	ApiConfiguration,
@@ -32,8 +33,10 @@ import {
 	unboundDefaultModelInfo,
 	requestyDefaultModelId,
 	requestyDefaultModelInfo,
+	THINKING_BUDGET,
 } from "../../../../src/shared/api"
 import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+
 import { vscode } from "../../utils/vscode"
 import VSCodeButtonLink from "../common/VSCodeButtonLink"
 import { OpenRouterModelPicker } from "./OpenRouterModelPicker"
@@ -43,6 +46,7 @@ import { UnboundModelPicker } from "./UnboundModelPicker"
 import { ModelInfoView } from "./ModelInfoView"
 import { DROPDOWN_Z_INDEX } from "./styles"
 import { RequestyModelPicker } from "./RequestyModelPicker"
+import { TemperatureControl } from "./TemperatureControl"
 
 interface ApiOptionsProps {
 	uriScheme: string | undefined
@@ -69,10 +73,13 @@ const ApiOptions = ({
 	const [openRouterBaseUrlSelected, setOpenRouterBaseUrlSelected] = useState(!!apiConfiguration?.openRouterBaseUrl)
 	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
 
-	const inputEventTransform = <E,>(event: E) => (event as { target: HTMLInputElement })?.target?.value as any
+	const anthropicThinkingBudget = apiConfiguration?.anthropicThinking ?? THINKING_BUDGET.default
+
 	const noTransform = <T,>(value: T) => value
+	const inputEventTransform = <E,>(event: E) => (event as { target: HTMLInputElement })?.target?.value as any
 	const dropdownEventTransform = <T,>(event: DropdownOption | string | undefined) =>
 		(typeof event == "string" ? event : event?.value) as T
+
 	const handleInputChange = useCallback(
 		<K extends keyof ApiConfiguration, E>(
 			field: K,
@@ -103,8 +110,10 @@ const ApiOptions = ({
 		250,
 		[selectedProvider, apiConfiguration?.ollamaBaseUrl, apiConfiguration?.lmStudioBaseUrl],
 	)
+
 	const handleMessage = useCallback((event: MessageEvent) => {
 		const message: ExtensionMessage = event.data
+
 		if (message.type === "ollamaModels" && Array.isArray(message.ollamaModels)) {
 			const newModels = message.ollamaModels
 			setOllamaModels(newModels)
@@ -116,6 +125,7 @@ const ApiOptions = ({
 			setVsCodeLmModels(newModels)
 		}
 	}, [])
+
 	useEvent("message", handleMessage)
 
 	const createDropdown = (models: Record<string, ModelInfo>) => {
@@ -126,6 +136,7 @@ const ApiOptions = ({
 				label: modelId,
 			})),
 		]
+
 		return (
 			<Dropdown
 				id="model-id"
@@ -185,6 +196,7 @@ const ApiOptions = ({
 						checked={anthropicBaseUrlSelected}
 						onChange={(checked: boolean) => {
 							setAnthropicBaseUrlSelected(checked)
+
 							if (!checked) {
 								setApiConfigurationField("anthropicBaseUrl", "")
 							}
@@ -384,6 +396,7 @@ const ApiOptions = ({
 								checked={openRouterBaseUrlSelected}
 								onChange={(checked: boolean) => {
 									setOpenRouterBaseUrlSelected(checked)
+
 									if (!checked) {
 										setApiConfigurationField("openRouterBaseUrl", "")
 									}
@@ -507,7 +520,7 @@ const ApiOptions = ({
 				</div>
 			)}
 
-			{apiConfiguration?.apiProvider === "vertex" && (
+			{selectedProvider === "vertex" && (
 				<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
 					<VSCodeTextField
 						value={apiConfiguration?.vertexProjectId || ""}
@@ -621,6 +634,7 @@ const ApiOptions = ({
 						checked={azureApiVersionSelected}
 						onChange={(checked: boolean) => {
 							setAzureApiVersionSelected(checked)
+
 							if (!checked) {
 								setApiConfigurationField("azureApiVersion", "")
 							}
@@ -886,7 +900,7 @@ const ApiOptions = ({
 											}}
 											onChange={handleInputChange("openAiCustomModelInfo", (e) => {
 												const value = (e.target as HTMLInputElement).value
-												const parsed = parseInt(value)
+												const parsed = parseFloat(value)
 												return {
 													...(apiConfiguration?.openAiCustomModelInfo ??
 														openAiModelInfoSaneDefaults),
@@ -931,7 +945,7 @@ const ApiOptions = ({
 											}}
 											onChange={handleInputChange("openAiCustomModelInfo", (e) => {
 												const value = (e.target as HTMLInputElement).value
-												const parsed = parseInt(value)
+												const parsed = parseFloat(value)
 												return {
 													...(apiConfiguration?.openAiCustomModelInfo ||
 														openAiModelInfoSaneDefaults),
@@ -1224,7 +1238,6 @@ const ApiOptions = ({
 			)}
 
 			{selectedProvider === "glama" && <GlamaModelPicker />}
-
 			{selectedProvider === "openrouter" && <OpenRouterModelPicker />}
 			{selectedProvider === "requesty" && <RequestyModelPicker />}
 
@@ -1258,8 +1271,27 @@ const ApiOptions = ({
 					</>
 				)}
 
+			{selectedModelInfo && selectedModelInfo.thinking && (
+				<div className="flex flex-col gap-1 mt-2">
+					<div className="font-medium">Thinking Budget</div>
+					<div className="flex items-center gap-1">
+						<Slider
+							min={THINKING_BUDGET.min}
+							max={(selectedModelInfo.maxTokens ?? THINKING_BUDGET.default) - 1}
+							step={THINKING_BUDGET.step}
+							value={[anthropicThinkingBudget]}
+							onValueChange={(value) => setApiConfigurationField("anthropicThinking", value[0])}
+						/>
+						<div className="w-12 text-sm text-center">{anthropicThinkingBudget}</div>
+					</div>
+					<div className="text-muted-foreground text-sm">
+						Number of tokens Claude is allowed to use for its internal reasoning process.
+					</div>
+				</div>
+			)}
+
 			{!fromWelcomeView && (
-				<div style={{ marginTop: "10px" }}>
+				<div className="mt-2">
 					<TemperatureControl
 						value={apiConfiguration?.modelTemperature}
 						onChange={handleInputChange("modelTemperature", noTransform)}
