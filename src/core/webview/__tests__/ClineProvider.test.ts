@@ -39,7 +39,15 @@ jest.mock("../WebviewManager", () => {
 
 				// Set up message listener
 				if (messageListener) {
-					messageListener({})
+					// Store the message listener in the onDidReceiveMessage mock
+					webviewView.webview.onDidReceiveMessage.mockImplementation((callback: (message: any) => void) => {
+						// Store the callback in mock.calls so tests can access it
+						callback({}) // Call with empty object to simulate initial message
+						return { dispose: jest.fn() }
+					})
+
+					// Store the messageListener directly in mock.calls for backward compatibility
+					webviewView.webview.onDidReceiveMessage.mock.calls.push([messageListener])
 				}
 
 				return Promise.resolve(webviewView)

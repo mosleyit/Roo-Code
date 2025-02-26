@@ -328,12 +328,20 @@ Despite the successful completion of Phase 3, the ClineProvider.ts file is still
 
 Phase 4 will focus on completing the transition to the new architecture by removing legacy code and simplifying the tests.
 
-#### Step 1: Remove Switch Statement (Planned)
+#### Step 1: Remove Switch Statement ✅ (Completed)
 
-- [ ] Remove the large switch statement in setWebviewMessageListener
-- [ ] Ensure all message types are handled by command handlers
-- [ ] Update any remaining code that relies on the switch statement
-- [ ] Test thoroughly to ensure no functionality is lost
+- [x] Remove the large switch statement in setWebviewMessageListener
+- [x] Ensure all message types are handled by command handlers
+- [x] Update any remaining code that relies on the switch statement
+- [x] Test thoroughly to ensure no functionality is lost
+
+##### Issues and Fixes
+
+1. **Multiple Task Creation Issue**
+    - **Issue**: After removing the switch statement, tasks were being created multiple times.
+    - **Root Cause**: The `generateSystemPrompt` function was still defined at the end of the `setWebviewMessageListener` method but wasn't being used anywhere. This leftover function was causing issues with message handling.
+    - **Fix**: Removed the unused `generateSystemPrompt` function from the `setWebviewMessageListener` method.
+    - **Result**: Tasks are now created only once as expected.
 
 #### Step 2: Simplify Test Setup (Planned)
 
