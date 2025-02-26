@@ -659,7 +659,13 @@ export class Cline {
 					existingApiConversationHistory[existingApiConversationHistory.length - 2]
 
 				const existingUserContent: UserContent = Array.isArray(lastMessage.content)
-					? lastMessage.content
+					? (lastMessage.content.filter(
+							(block) =>
+								block.type === "text" ||
+								block.type === "image" ||
+								block.type === "tool_use" ||
+								block.type === "tool_result",
+						) as UserContent)
 					: [{ type: "text", text: lastMessage.content }]
 				if (previousAssistantMessage && previousAssistantMessage.role === "assistant") {
 					const assistantContent = Array.isArray(previousAssistantMessage.content)
