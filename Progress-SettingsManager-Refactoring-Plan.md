@@ -282,31 +282,32 @@ The BrowserManager implementation has successfully extracted browser-related fun
     - **Fix**: Added a browserManager property with a mock urlContentFetcher to the mockProvider object in WebviewMessageHandlers.test.ts.
     - **Result**: All tests now pass successfully.
 
-#### Step 5: Implement Service Locator Pattern (Planned)
+#### Step 5: Implement Service Locator Pattern ✅ (Completed)
 
-- [ ] Create a new file `src/core/ServiceLocator.ts`
-- [ ] Implement the service locator pattern
-- [ ] Update ClineProvider to use the service locator
-- [ ] Create unit tests for ServiceLocator
+- [x] Create a new file `src/core/ServiceLocator.ts`
+- [x] Implement the service locator pattern
+- [x] Update ClineProvider to use the service locator
+- [x] Create unit tests for ServiceLocator
 
-#### Step 6: Create ClineProviderFactory (Planned)
+#### Step 6: Create ClineProviderFactory ✅ (Completed)
 
-- [ ] Create a new file `src/core/webview/ClineProviderFactory.ts`
-- [ ] Implement the factory pattern
-- [ ] Update extension.ts to use the factory
-- [ ] Create unit tests for ClineProviderFactory
+- [x] Create a new file `src/core/webview/ClineProviderFactory.ts`
+- [x] Implement the factory pattern
+- [x] Update extension.ts to use the factory
+- [x] Create unit tests for ClineProviderFactory
 
-#### Step 7: Update Tests (Planned)
+#### Step 7: Update Tests ✅ (Completed)
 
-- [ ] Create tests for all new classes
-- [ ] Update existing tests to reflect the new structure
-- [ ] Ensure all tests pass with the new implementation
+- [x] Create tests for ServiceLocator
+- [x] Create tests for ClineProviderFactory
+- [x] Update existing tests to reflect the new structure
+- [x] Ensure all tests pass with the new implementation
 
-#### Step 8: Update Documentation (Planned)
+#### Step 8: Update Documentation ✅ (Completed)
 
-- [ ] Update `cline_docs/settings.md` to reflect the new architecture
-- [ ] Document the new classes and their responsibilities
-- [ ] Update any other relevant documentation
+- [x] Update `cline_docs/settings.md` to reflect the new architecture
+- [x] Document the new classes and their responsibilities
+- [x] Update any other relevant documentation
 
 ## Implementation Strategy
 

@@ -62,6 +62,7 @@ import { CustomSupportPrompts, supportPrompt } from "../../shared/support-prompt
 
 import { ACTION_NAMES } from "../CodeActionProvider"
 import { McpServerManager } from "../../services/mcp/McpServerManager"
+import { ServiceLocator } from "../ServiceLocator"
 
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -205,6 +206,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	) {
 		this.outputChannel.appendLine("ClineProvider instantiated")
 		ClineProvider.activeInstances.add(this)
+
+		// Initialize all dependencies
 		this.workspaceTracker = new WorkspaceTracker(this)
 		this.configManager = new ConfigManager(this.context)
 		this.customModesManager = new CustomModesManager(this.context, async () => {
@@ -218,12 +221,30 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.commandRegistry = new WebviewCommandRegistry()
 		this.systemPromptGenerator = new SystemPromptGenerator(this.context)
 		this.browserManager = new BrowserManager(this.context, this.outputChannel)
+
+		// Register all services with the ServiceLocator
+		const serviceLocator = ServiceLocator.getInstance()
+		serviceLocator.register("context", this.context)
+		serviceLocator.register("outputChannel", this.outputChannel)
+		serviceLocator.register("settingsManager", this.settingsManager)
+		serviceLocator.register("modelManager", this.modelManager)
+		serviceLocator.register("taskHistoryManager", this.taskHistoryManager)
+		serviceLocator.register("webviewManager", this.webviewManager)
+		serviceLocator.register("commandRegistry", this.commandRegistry)
+		serviceLocator.register("systemPromptGenerator", this.systemPromptGenerator)
+		serviceLocator.register("browserManager", this.browserManager)
+		serviceLocator.register("configManager", this.configManager)
+		serviceLocator.register("customModesManager", this.customModesManager)
+		serviceLocator.register("clineProvider", this)
+
 		this.registerCommandHandlers()
 
 		// Initialize MCP Hub through the singleton manager
 		McpServerManager.getInstance(this.context, this)
 			.then((hub) => {
 				this.mcpHub = hub
+				// Register McpHub with ServiceLocator once it's available
+				serviceLocator.register("mcpHub", hub)
 			})
 			.catch((error) => {
 				this.outputChannel.appendLine(`Failed to initialize MCP Hub: ${error}`)
