@@ -319,3 +319,41 @@ To minimize risk and ensure a smooth transition, we'll implement Phase 3 in the 
 4. Implement the Service Locator and ClineProviderFactory last, as these affect the overall architecture
 
 Each step will be completed with full test coverage before moving to the next step.
+
+## Next Steps: Phase 4
+
+Despite the successful completion of Phase 3, the ClineProvider.ts file is still only about 100 lines shorter than before, and the ClineProvider.test.ts file is actually about 100 lines larger. This is because we're in a transition period where old and new code coexist. To fully realize the benefits of our refactoring, we should proceed with Phase 4: Complete Transition.
+
+### Phase 4: Complete Transition (Planned)
+
+Phase 4 will focus on completing the transition to the new architecture by removing legacy code and simplifying the tests.
+
+#### Step 1: Remove Switch Statement (Planned)
+
+- [ ] Remove the large switch statement in setWebviewMessageListener
+- [ ] Ensure all message types are handled by command handlers
+- [ ] Update any remaining code that relies on the switch statement
+- [ ] Test thoroughly to ensure no functionality is lost
+
+#### Step 2: Simplify Test Setup (Planned)
+
+- [ ] Create helper functions for common test setup tasks
+- [ ] Reduce duplication in test setup code
+- [ ] Remove tests for deprecated code paths
+- [ ] Update tests to only use the new architecture patterns
+
+#### Step 3: Refactor ClineProvider Interface (Planned)
+
+- [ ] Review and refine the ClineProvider public interface
+- [ ] Remove any remaining delegation methods
+- [ ] Ensure all dependencies are properly injected
+- [ ] Update documentation to reflect the final architecture
+
+#### Step 4: Measure and Document Improvements (Planned)
+
+- [ ] Measure the final size reduction in ClineProvider.ts
+- [ ] Measure the complexity reduction (e.g., cyclomatic complexity)
+- [ ] Document the final architecture and benefits
+- [ ] Create diagrams to visualize the new architecture
+
+The expected outcome of Phase 4 is a significantly smaller ClineProvider.ts file (potentially 500+ lines shorter), simpler tests, and a cleaner, more maintainable architecture.
