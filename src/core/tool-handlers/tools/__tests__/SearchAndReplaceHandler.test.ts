@@ -23,29 +23,7 @@ jest.mock("../../../../utils/fs", () => ({
 jest.mock("fs/promises", () => ({
 	readFile: jest.fn(() => Promise.resolve("Line 1\nLine to replace\nLine 3")), // Default file content
 }))
-// jest.mock("../../../diff/search-replace", () => ({ // Remove old mock
-//     searchAndReplace: jest.fn((lines, ops) => {
-//         // Simple mock: just join lines and replace based on first op
-//         let content = lines.join('\n');
-//         if (ops.length > 0) {
-//             content = content.replace(ops[0].search, ops[0].replace);
-//         }
-//         return content.split('\n');
-//     }),
-// }));
-// Remove the incorrect mock for SearchReplaceDiffStrategy
-// jest.mock("../../../diff/strategies/search-replace", () => ({ // Mock the correct module
-//     SearchReplaceDiffStrategy: jest.fn().mockImplementation(() => { // Mock the class
-//         return {
-//             // Mock methods used by the handler or tests
-//             applyDiff: jest.fn().mockResolvedValue({ success: true, content: 'mock updated content' }),
-//             // Add other methods if needed by tests, e.g., getName, getToolDescription
-//             getName: jest.fn(() => 'mockSearchReplace'),
-//             getToolDescription: jest.fn(() => 'mock description'),
-//             getProgressStatus: jest.fn(() => undefined),
-//         };
-//     }),
-// }));
+
 jest.mock("../../../../services/telemetry/TelemetryService", () => ({
 	telemetryService: {
 		captureToolUsage: jest.fn(),
@@ -166,40 +144,38 @@ describe("SearchAndReplaceHandler", () => {
 	test("handleComplete should call searchAndReplace and update diff view", async () => {
 		;(fileExistsAtPath as jest.Mock).mockResolvedValue(true)
 		const handler = new SearchAndReplaceHandler(mockClineInstance, mockToolUse)
+		const originalContent = "Line 1\nLine to replace\nLine 3"
+		const expectedNewContent = "Line 1\nLine replaced\nLine 3" // Based on mockToolUse operations
+		;(fs.readFile as jest.Mock).mockResolvedValue(originalContent) // Ensure readFile returns the base content
+
 		await handler.handle()
+
 		expect(fs.readFile).toHaveBeenCalledWith("/workspace/test.txt", "utf-8") // Correct encoding
-		// Access the applyDiff mock from the instance created by the handler
-		const mockStrategyInstance = (SearchReplaceDiffStrategy as jest.MockedClass<typeof SearchReplaceDiffStrategy>)
-			.mock.instances[0]
-		expect(mockStrategyInstance.applyDiff).toHaveBeenCalledWith(
-			"Line 1\nLine to replace\nLine 3", // Original file content string
-			mockToolUse.params.operations, // The operations JSON string
-			undefined, // No start_line provided in this tool's params
-			undefined, // No end_line provided in this tool's params
+
+		// Verify the replacement logic outcome by checking the arguments passed to createPrettyPatch
+		expect(formatResponse.createPrettyPatch).toHaveBeenCalledWith(
+			"test.txt", // relPath
+			originalContent,
+			expectedNewContent,
 		)
-		expect(mockDiffViewProvider.update).toHaveBeenCalledWith(expect.any(String), true)
+
+		// Verify diff view update (content check is implicitly done via createPrettyPatch check)
+		expect(mockDiffViewProvider.update).toHaveBeenCalledWith(expectedNewContent, true)
 		expect(mockDiffViewProvider.scrollToFirstDiff).toHaveBeenCalled()
 	})
 
 	test("handleComplete should push 'No changes needed' if diff is empty", async () => {
 		;(fileExistsAtPath as jest.Mock).mockResolvedValue(true)
-		// Update to mock the applyDiff method of the strategy instance
-		// Access the mock instance created by the handler in the previous test run (or assume one exists)
-		// This is fragile, ideally mock setup should be self-contained per test
-		const mockStrategyInstance = (SearchReplaceDiffStrategy as jest.MockedClass<typeof SearchReplaceDiffStrategy>)
-			.mock.instances[0]
-		if (mockStrategyInstance) {
-			;(mockStrategyInstance.applyDiff as jest.Mock).mockResolvedValue({
-				success: true,
-				content: "Line 1\nLine to replace\nLine 3",
-			}) // Access .mock property
-		} else {
-			// Fallback or throw error if instance doesn't exist - indicates test order dependency
-			console.warn("Mock strategy instance not found for 'No changes needed' test setup")
-		}
+
+		// Explicitly mock fs.readFile for this specific test case
+		const mockReadFile = fs.readFile as jest.Mock
+		mockReadFile.mockResolvedValue("Line 1\nLine to replace\nLine 3") // Content that won't change
 		;(formatResponse.createPrettyPatch as jest.Mock).mockReturnValue("") // Simulate empty diff
 		const handler = new SearchAndReplaceHandler(mockClineInstance, mockToolUse)
 		await handler.handle()
+
+		// Restore default mock if needed, though beforeEach should handle it
+		// mockReadFile.mockResolvedValue("Line 1\nLine to replace\nLine 3"); // Restore default if necessary
 		expect(mockClineInstance.pushToolResult).toHaveBeenCalledWith(mockToolUse, "No changes needed for 'test.txt'")
 		expect(mockDiffViewProvider.reset).toHaveBeenCalled()
 	})
@@ -213,7 +189,7 @@ describe("SearchAndReplaceHandler", () => {
 			mockToolUse,
 			"tool",
 			expect.stringContaining('"tool":"appliedDiff"'),
-			undefined, // No progress status
+			// Removed undefined, as the handler only passes 3 arguments
 		)
 	})
 
@@ -244,25 +220,13 @@ describe("SearchAndReplaceHandler", () => {
 	})
 
 	test("handleComplete should handle errors during search/replace", async () => {
+		const replaceError = new Error("Replace failed") // Define error first
 		;(fileExistsAtPath as jest.Mock).mockResolvedValue(true)
-		const replaceError = new Error("Replace failed")
-		// Update to mock the applyDiff method of the strategy instance
-		// Access the mock instance created by the handler
-		const mockStrategyInstance = (SearchReplaceDiffStrategy as jest.MockedClass<typeof SearchReplaceDiffStrategy>)
-			.mock.instances[0]
-		if (mockStrategyInstance) {
-			;(mockStrategyInstance.applyDiff as jest.Mock).mockImplementation(() => {
-				throw replaceError
-			})
-		} else {
-			console.warn("Mock strategy instance not found for error handling test setup")
-			// Fallback: Mock constructor to throw if instance isn't found (less ideal)
-			;(SearchReplaceDiffStrategy as jest.MockedClass<typeof SearchReplaceDiffStrategy>).mockImplementationOnce(
-				() => {
-					throw replaceError
-				},
-			)
-		}
+
+		// Explicitly mock fs.readFile to reject for this specific test case
+		const mockReadFile = fs.readFile as jest.Mock
+		mockReadFile.mockRejectedValue(replaceError)
+
 		const handler = new SearchAndReplaceHandler(mockClineInstance, mockToolUse)
 		await handler.handle()
 		expect(mockClineInstance.handleErrorHelper).toHaveBeenCalledWith(
