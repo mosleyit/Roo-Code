@@ -139,15 +139,8 @@ export class InsertContentHandler extends ToolUseHandler {
 				path: getReadablePath(this.cline.cwd, relPath),
 			}
 
-			if (!this.cline.diffViewProvider.isEditing) {
-				// Show partial message first if editor isn't open
-				await this.cline.ask("tool", JSON.stringify(sharedMessageProps), true).catch(() => {})
-				await this.cline.diffViewProvider.open(relPath)
-				// Update with original content first? Original code seems to skip this if !isEditing
-				// Let's stick to original: update directly with new content after opening
-				// await this.cline.diffViewProvider.update(fileContent, false);
-				// await delay(200);
-			}
+			// Ensure diff view is open before proceeding (Remove isEditing check and console logs)
+			await this.cline.diffViewProvider.open(relPath) // Ensures editor is open
 
 			const diff = formatResponse.createPrettyPatch(relPath, fileContent, updatedContent)
 

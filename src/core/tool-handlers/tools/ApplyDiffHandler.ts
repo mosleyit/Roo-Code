@@ -272,6 +272,8 @@ export class ApplyDiffHandler extends ToolUseHandler {
 			telemetryService.captureToolUsage(this.cline.taskId, this.toolUse.name)
 		} catch (error: any) {
 			await this.cline.handleErrorHelper(this.toolUse, "applying diff", error)
+			// Ensure changes are reverted if an error occurs during saveChanges or other steps
+			await this.cline.diffViewProvider.revertChanges()
 		} finally {
 			// Always reset diff provider state
 			await this.cline.diffViewProvider.reset()

@@ -18,6 +18,11 @@
 			"label": "npm: dev",
 			"type": "npm",
 			"script": "dev",
+			"options": {
+				"env": {
+					"PATH": "/home/jeffmosley/.nvm/versions/node/v20.17.0/bin:${env:PATH}"
+				}
+			},
 			"group": "build",
 			"problemMatcher": {
 				"owner": "vite",
@@ -40,6 +45,11 @@
 			"label": "npm: watch:esbuild",
 			"type": "npm",
 			"script": "watch:esbuild",
+			"options": {
+				"env": {
+					"PATH": "/home/jeffmosley/.nvm/versions/node/v20.17.0/bin:${env:PATH}"
+				}
+			},
 			"group": "build",
 			"problemMatcher": "$esbuild-watch",
 			"isBackground": true,
@@ -52,6 +62,11 @@
 			"label": "npm: watch:tsc",
 			"type": "npm",
 			"script": "watch:tsc",
+			"options": {
+				"env": {
+					"PATH": "/home/jeffmosley/.nvm/versions/node/v20.17.0/bin:${env:PATH}"
+				}
+			},
 			"group": "build",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
