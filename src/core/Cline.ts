@@ -30,6 +30,7 @@ import {
 } from "../integrations/misc/extract-text"
 import { countFileLines } from "../integrations/misc/line-counter"
 import { fetchInstructionsTool } from "./tools/fetchInstructionsTool"
+import { readFileTool } from "./tools/readFileTool"
 import { ExitCodeDetails } from "../integrations/terminal/TerminalProcess"
 import { Terminal } from "../integrations/terminal/Terminal"
 import { TerminalRegistry } from "../integrations/terminal/TerminalRegistry"
@@ -88,9 +89,7 @@ import { insertGroups } from "./diff/insert-groups"
 import { telemetryService } from "../services/telemetry/TelemetryService"
 import { validateToolUse, isToolAllowedForMode, ToolName } from "./mode-validator"
 import { parseXml } from "../utils/xml"
-import { readLines } from "../integrations/misc/read-lines"
 import { getWorkspacePath } from "../utils/path"
-import { isBinaryFile } from "isbinaryfile"
 import { ToolUseHandlerFactory } from "./tool-handlers/ToolUseHandlerFactory" //Import the factory
 
 export type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
